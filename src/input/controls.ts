@@ -1,6 +1,4 @@
-import type { Rect } from './seats';
-
-/** 미니게임 조작 배치: 원버튼(구역 전체) 또는 좌/우 2버튼(플레이어 기준 왼쪽 절반·오른쪽 절반) */
+/** 미니게임 조작 배치: 원버튼 또는 좌/우 2버튼(플레이어 기준). 버튼 위치는 padButtons.ts */
 export type ControlLayout = 'one' | 'leftRight';
 export const BUTTON_COUNT: Readonly<Record<ControlLayout, number>> = { one: 1, leftRight: 2 };
 export const BTN_LEFT = 0;
@@ -71,11 +69,4 @@ export class PlayerControls {
       if (this.held[b] > 0) this.heldTime[b] += dt;
     }
   }
-}
-
-/** 터치 위치가 어느 버튼인지. 위쪽(회전) 플레이어는 화면 오른쪽이 자기 왼쪽이다. */
-export function buttonAt(layout: ControlLayout, zone: Rect, flipped: boolean, x: number): number {
-  if (layout === 'one') return 0;
-  const localX = flipped ? zone.x + zone.w - x : x - zone.x;
-  return localX < zone.w / 2 ? BTN_LEFT : BTN_RIGHT;
 }

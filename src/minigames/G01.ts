@@ -14,7 +14,7 @@ export const ARENA_X = 160;
 export const ARENA_Y = 90;
 export const ARENA_R = 74;
 export const TOP_R = 7;
-export const DURATION = 40;
+export const DURATION = 30;
 /** 처음 몇 초는 가장자리에 벽이 있어 떨어지지 않는다(실패해도 손해 적게) */
 export const SAFE_TIME = 3;
 

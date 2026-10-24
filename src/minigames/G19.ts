@@ -10,9 +10,9 @@ import { homeDir } from './players';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G19 칼 뽑기 결투: 신호가 뜨는 순간 먼저 탭. 신호 전에 누르면 그 라운드 실격(자멸).
-// 5라운드, 라운드마다 가장 빠른 1명 1점(같은 틱이면 공동). 동점은 평균 반응 시간이 빠른 쪽.
+// 3라운드, 라운드마다 가장 빠른 1명 1점(같은 틱이면 공동). 동점은 평균 반응 시간이 빠른 쪽.
 
-export const ROUNDS = 5;
+export const ROUNDS = 3;
 const WAIT_MIN = 1.6;
 const WAIT_MAX = 3.8;
 /** 신호 뒤 아무도 안 누르면 이 시간 뒤 라운드 종료 */
@@ -173,7 +173,8 @@ export class QuickDraw implements MiniGame {
   /** 자리별 말 위치(화면 좌표, 발 기준 가운데) */
   private fighterPos(p: PlayerInfo): { x: number; y: number } {
     const d = homeDir(p, this.ctx.humanCount);
-    return { x: 160 + d.x * 100, y: 92 + d.y * 50 };
+    // 모서리 버튼을 피해 안쪽에 세운다
+    return { x: 160 + d.x * 72, y: 92 + d.y * 46 };
   }
 
   render(r: Renderer): void {
@@ -192,11 +193,12 @@ export class QuickDraw implements MiniGame {
         const sy = Math.round(pos.y - FIGHTER);
         r.ctx.drawImage(fighterSprite(p.seat, p.color, pose, mirror), sx, sy);
         drawMarker(r, pos.x, sy - 2, p.color.base);
-        // 이긴 라운드 표시(5칸)
+        // 이긴 라운드 표시
         for (let i = 0; i < ROUNDS; i++) {
           const filled = i < (this.wins.get(p.seat) ?? 0);
-          r.rect(pos.x - 14 + i * 6, pos.y + 3, 5, 4, PAL.line);
-          r.rect(pos.x - 13 + i * 6, pos.y + 4, 3, 2, filled ? p.color.base : PAL.bgDark);
+          const px = pos.x - (ROUNDS * 6) / 2 + i * 6;
+          r.rect(px, pos.y + 3, 5, 4, PAL.line);
+          r.rect(px + 1, pos.y + 4, 3, 2, filled ? p.color.base : PAL.bgDark);
         }
         const warned = this.warned.get(p.seat);
         if (warned !== undefined && this.t - warned < 0.8) r.text('아직!', pos.x, sy - 16, PAL.text, 'center');

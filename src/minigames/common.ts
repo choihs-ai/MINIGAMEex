@@ -1,7 +1,9 @@
-import { BTN_LEFT, BTN_RIGHT, type ControlLayout, type PlayerControls } from '../input/controls';
+import type { ControlLayout, PlayerControls } from '../input/controls';
+import type { PadButton } from '../input/padButtons';
 import type { Seat } from '../input/seats';
 import { PAL, type Color } from '../render/palette';
 import type { Renderer } from '../render/renderer';
+import { drawArcadeButton } from '../ui/arcadeButton';
 import { DIGIT_SMALL, drawNumber } from '../ui/bigText';
 import type { PlayerInfo } from './types';
 
@@ -52,47 +54,22 @@ export function drawLine(r: Renderer, x0: number, y0: number, x1: number, y1: nu
   }
 }
 
-/**
- * 사람 플레이어 구역 가장자리(자기 쪽)에 버튼 위치를 보여준다.
- * 누르면 진영색으로 켜지고, canPress면 깜빡이며 빛나 "지금 누르세요"를 알린다.
- */
-export function drawButtonHints(
+/** 사람 플레이어의 가장자리 큰 버튼. 누르면 눌리고, canPress면 테두리가 깜빡인다. */
+export function drawPadButtons(
   r: Renderer,
+  buttons: readonly PadButton[],
   players: readonly PlayerInfo[],
-  controls: ReadonlyMap<Seat, PlayerControls>,
+  controls: ReadonlyMap<Seat, PlayerControls> | null,
   layout: ControlLayout,
   time: number,
   canPress?: (seat: Seat) => boolean,
 ): void {
   const blink = Math.floor(time * 6) % 2 === 0;
-  for (const p of players) {
-    const z = p.zone;
-    const c = controls.get(p.seat);
-    if (!z || !c) continue;
-    const ready = canPress?.(p.seat) ?? false;
-    const fill = (b: number): Color => (c.isDown(b) ? p.color.base : ready && blink ? PAL.text : p.color.shadow);
-    const draw = () => {
-      const by = z.y + z.h - 11;
-      if (layout === 'one') {
-        const cx = z.x + Math.floor(z.w / 2);
-        r.disc(cx, by + 5, 5, PAL.line);
-        r.disc(cx, by + 5, 4, fill(0));
-      } else {
-        drawArrowButton(r, z.x + 3, by, -1, fill(BTN_LEFT));
-        drawArrowButton(r, z.x + z.w - 19, by, 1, fill(BTN_RIGHT));
-      }
-    };
-    if (p.flipped) r.rotated180(z.x, z.y, z.w, z.h, draw);
-    else draw();
-  }
-}
-
-/** 16×9 화살표 버튼(dir -1=◀, 1=▶) */
-function drawArrowButton(r: Renderer, x: number, y: number, dir: -1 | 1, color: Color): void {
-  r.rect(x, y, 16, 9, PAL.line);
-  for (let i = 0; i < 4; i++) {
-    const h = 1 + i * 2;
-    const col = dir < 0 ? x + 6 + i : x + 9 - i;
-    r.rect(col, y + 4 - i, 1, h, color);
+  for (const b of buttons) {
+    const p = players.find((pl) => pl.seat === b.seat);
+    if (!p) continue;
+    const pressed = controls?.get(b.seat)?.isDown(b.index) ?? false;
+    const glow = blink && (canPress?.(b.seat) ?? false);
+    drawArcadeButton(r, b, p.color, { pressed, glow, arrow: layout === 'leftRight' ? (b.index === 0 ? -1 : 1) : undefined });
   }
 }

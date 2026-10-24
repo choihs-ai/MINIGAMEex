@@ -9,38 +9,35 @@ import { drawMarker, drawTimer } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G22 별 받기: 바구니를 좌우로 움직여 떨어지는 별을 받는다. 남의 쪽 별도 가로챌 수 있다.
-// 바구니는 각자 앉은 쪽 가장자리에 있다(아래쪽 사람은 아래, 위쪽 사람은 위).
-// 양쪽에 사람이 있으면 별은 가운데 줄에서 생겨 각 쪽으로 떨어진다.
+// 바구니는 모두 아래쪽 한 줄(위쪽에 앉은 사람도 같은 방향에서 받는다). 가운데 경기장 안에서만 움직인다.
 
-export const DURATION = 45;
+export const DURATION = 20;
+/** 경기장(모서리 버튼을 피한 가운데 띠) */
+export const FIELD_X = 80;
+export const FIELD_W = 160;
 export const BASKET_W = 24;
 const BASKET_H = 7;
-export const BASKET_SPEED = 120;
-/** 아래쪽 바구니 윗면(별을 받는 선). 위쪽은 화면 기준으로 뒤집은 위치. */
-export const CATCH_Y_BOTTOM = 156;
-export const CATCH_Y_TOP = 180 - CATCH_Y_BOTTOM;
-const STAR_SPEED_START = 55;
+export const BASKET_SPEED = 110;
+/** 바구니 윗면(별을 받는 선) */
+export const CATCH_Y = 150;
+const STAR_SPEED_START = 60;
 const STAR_SPEED_END = 95;
-/** 그 쪽에 있는 사람 1명당 초당 별 수 */
-const STARS_PER_PLAYER = 1.1;
-
-export type Side = 'top' | 'bottom';
+/** 참가자 1명당 초당 별 수 */
+const STARS_PER_PLAYER = 0.9;
 
 export interface Basket {
   seat: Seat;
-  side: Side;
   /** 바구니 가운데 x */
   x: number;
   count: number;
   caughtAt: number;
+  /** 위쪽에 앉은 사람: 자기 기준 좌우가 화면과 반대 */
+  flipped: boolean;
 }
 
 export interface Star {
   x: number;
   y: number;
-  side: Side;
-  /** 떨어지는 방향(아래 +1, 위 -1) */
-  dir: 1 | -1;
 }
 
 export class StarCatch implements MiniGame {
@@ -50,24 +47,18 @@ export class StarCatch implements MiniGame {
   t = 0;
   private ctx!: GameContext;
   private done = false;
-  private spawnClock = new Map<Side, number>();
-  private sides: Side[] = [];
+  private spawnClock = 0.3;
 
   setup(ctx: GameContext): void {
     this.ctx = ctx;
-    for (const side of ['bottom', 'top'] as Side[]) {
-      // 같은 쪽 사람들을 화면 왼쪽부터 고르게 배치
-      const onSide = ctx.players
-        .filter((p) => sideOf(p) === side)
-        .sort((a, b) => screenOrder(a, ctx.humanCount) - screenOrder(b, ctx.humanCount));
-      onSide.forEach((p, i) => {
-        this.baskets.push({ seat: p.seat, side, x: Math.round((320 * (i + 1)) / (onSide.length + 1)), count: 0, caughtAt: -1 });
-      });
-      if (onSide.length > 0) {
-        this.sides.push(side);
-        this.spawnClock.set(side, 0.4);
-      }
-    }
+    const ordered = [...ctx.players].sort((a, b) => a.seat - b.seat);
+    this.baskets = ordered.map((p, i) => ({
+      seat: p.seat,
+      x: Math.round(FIELD_X + (FIELD_W * (i + 1)) / (ordered.length + 1)),
+      count: 0,
+      caughtAt: -1,
+      flipped: p.flipped,
+    }));
   }
 
   get rng() {
@@ -90,12 +81,6 @@ export class StarCatch implements MiniGame {
     return rankByScore(this.baskets.map((b) => ({ seat: b.seat, score: b.count })));
   }
 
-  /** 별이 처음 생기는 y(양쪽에 사람이 있으면 가운데 줄, 한쪽뿐이면 반대편 끝) */
-  spawnY(side: Side): number {
-    if (this.sides.length === 2) return 90;
-    return side === 'bottom' ? -4 : 184;
-  }
-
   starSpeed(): number {
     return STAR_SPEED_START + (STAR_SPEED_END - STAR_SPEED_START) * Math.min(1, this.t / DURATION);
   }
@@ -106,31 +91,27 @@ export class StarCatch implements MiniGame {
 
     for (const b of this.baskets) {
       const c = this.ctx.controls.get(b.seat)!;
-      // 버튼은 플레이어 기준 좌/우. 위쪽 사람은 화면에서 좌우가 반대다.
+      // 버튼은 플레이어 기준 좌/우. 위쪽에 앉은 사람은 화면을 거꾸로 보므로 자기 왼쪽 = 화면 오른쪽.
       const local = (c.isDown(BTN_RIGHT) ? 1 : 0) - (c.isDown(BTN_LEFT) ? 1 : 0);
-      const dir = b.side === 'top' ? -local : local;
-      b.x = Math.max(BASKET_W / 2, Math.min(320 - BASKET_W / 2, b.x + dir * BASKET_SPEED * dt));
+      const dir = b.flipped ? -local : local;
+      const min = FIELD_X + BASKET_W / 2;
+      const max = FIELD_X + FIELD_W - BASKET_W / 2;
+      b.x = Math.max(min, Math.min(max, b.x + dir * BASKET_SPEED * dt));
     }
 
-    for (const side of this.sides) {
-      const count = this.baskets.filter((b) => b.side === side).length;
-      let clock = (this.spawnClock.get(side) ?? 0) - dt;
-      if (clock <= 0) {
-        clock += 1 / (STARS_PER_PLAYER * count);
-        this.stars.push({ x: 8 + this.ctx.rng.next() * 304, y: this.spawnY(side), side, dir: side === 'bottom' ? 1 : -1 });
-      }
-      this.spawnClock.set(side, clock);
+    this.spawnClock -= dt;
+    if (this.spawnClock <= 0) {
+      this.spawnClock += 1 / (STARS_PER_PLAYER * this.baskets.length);
+      this.stars.push({ x: FIELD_X + 6 + this.ctx.rng.next() * (FIELD_W - 12), y: -4 });
     }
 
     const speed = this.starSpeed();
     const kept: Star[] = [];
     for (const s of this.stars) {
       const before = s.y;
-      s.y += s.dir * speed * dt;
-      const line = s.side === 'bottom' ? CATCH_Y_BOTTOM : CATCH_Y_TOP;
-      const crossed = s.dir > 0 ? before < line && s.y >= line : before > line && s.y <= line;
-      if (crossed && this.tryCatch(s)) continue;
-      if (s.y < -10 || s.y > 190) continue;
+      s.y += speed * dt;
+      if (before < CATCH_Y && s.y >= CATCH_Y && this.tryCatch(s)) continue;
+      if (s.y > 190) continue;
       kept.push(s);
     }
     this.stars = kept;
@@ -138,11 +119,11 @@ export class StarCatch implements MiniGame {
     if (this.t >= DURATION) this.done = true;
   }
 
-  /** 받는 선을 지나는 순간, 그 쪽 바구니 중 가장 가까운 것이 받는다. */
+  /** 받는 선을 지나는 순간, 가장 가까운 바구니가 받는다. */
   private tryCatch(s: Star): boolean {
     let best: Basket | null = null;
     for (const b of this.baskets) {
-      if (b.side !== s.side || Math.abs(s.x - b.x) > BASKET_W / 2 + 2) continue;
+      if (Math.abs(s.x - b.x) > BASKET_W / 2 + 2) continue;
       if (!best || Math.abs(s.x - b.x) < Math.abs(s.x - best.x)) best = b;
     }
     if (!best) return false;
@@ -156,38 +137,33 @@ export class StarCatch implements MiniGame {
 
   render(r: Renderer): void {
     r.clear(PAL.bgDark);
-    if (this.sides.length === 2) {
-      for (let x = 0; x < 320; x += 6) r.rect(x, 90, 3, 1, PAL.bgMid);
-    }
+    // 경기장 테두리
+    r.rect(FIELD_X - 3, 0, 2, 180, PAL.bgMid);
+    r.rect(FIELD_X + FIELD_W + 1, 0, 2, 180, PAL.bgMid);
+    r.rect(FIELD_X, CATCH_Y + BASKET_H + 2, FIELD_W, 1, PAL.bgMid);
+
     for (const s of this.stars) {
       const x = Math.round(s.x);
       const y = Math.round(s.y);
-      // 지나온 자취
-      for (let k = 6; k <= 14; k += 2) r.rect(x, y - s.dir * k, 1, 1, PAL.bgMid);
+      for (let k = 6; k <= 14; k += 2) r.rect(x, y - k, 1, 1, PAL.bgMid);
       r.ctx.drawImage(starSprite(), x - 4, y - 4);
     }
     for (const b of this.baskets) this.drawBasket(r, b);
-    drawTimer(r, DURATION - this.t, 160, this.sides.length === 2 ? 84 : 1);
+    drawTimer(r, DURATION - this.t, 160, 1);
   }
 
   private drawBasket(r: Renderer, b: Basket): void {
     const p = this.ctx.players.find((pl) => pl.seat === b.seat)!;
     const { base, shadow } = p.color;
     const x = Math.round(b.x - BASKET_W / 2);
-    const y = CATCH_Y_BOTTOM;
-    const draw = () => {
-      // 받은 직후 한 프레임 눌린다
-      const bump = this.t - b.caughtAt < 0.08 ? 1 : 0;
-      r.rect(x - 1, y - 1 + bump, BASKET_W + 2, BASKET_H + 2, PAL.line);
-      r.rect(x, y + bump, BASKET_W, 2, base);
-      r.rect(x + 1, y + 2 + bump, BASKET_W - 2, BASKET_H - 2, shadow);
-      for (let i = x + 3; i < x + BASKET_W - 2; i += 4) r.rect(i, y + 3 + bump, 2, BASKET_H - 4, base);
-      drawMarker(r, b.x, y - 5, base);
-      r.text(String(b.count), b.x + 6, y - 13, base);
-    };
-    // 위쪽 바구니는 화면 가운데를 향하도록 180도 돌린다(x 대칭이 되므로 기준을 맞춘다)
-    if (b.side === 'top') r.rotated180(b.x - 40, 45, 80, 90, draw);
-    else draw();
+    const y = CATCH_Y;
+    const bump = this.t - b.caughtAt < 0.08 ? 1 : 0;
+    r.rect(x - 1, y - 1 + bump, BASKET_W + 2, BASKET_H + 2, PAL.line);
+    r.rect(x, y + bump, BASKET_W, 2, base);
+    r.rect(x + 1, y + 2 + bump, BASKET_W - 2, BASKET_H - 2, shadow);
+    for (let i = x + 3; i < x + BASKET_W - 2; i += 4) r.rect(i, y + 3 + bump, 2, BASKET_H - 4, base);
+    drawMarker(r, b.x, y - 5, base);
+    r.text(String(b.count), b.x, y + BASKET_H + 5, base, 'center');
   }
 }
 
@@ -205,17 +181,7 @@ function starSprite(): HTMLCanvasElement {
   return starCache;
 }
 
-function sideOf(p: PlayerInfo): Side {
-  return p.flipped ? 'top' : 'bottom';
-}
-
-/** 같은 쪽에서의 화면상 왼쪽→오른쪽 순서. 1인(AI 셋과 함께 모두 아래쪽)이면 1P~4P 순서. */
-function screenOrder(p: PlayerInfo, humanCount: number): number {
-  if (humanCount === 1) return p.seat;
-  return p.seat % 2 === 0 ? p.seat : p.seat + 10;
-}
-
-/** 닿을 수 있는 별 중 가장 가까운 별을 쫓는다. */
+/** 닿을 수 있는 별 중 가장 가까운 별을 쫓는다. 다른 바구니가 더 가까운 별은 뒤로 미룬다. */
 class StarCatchAI implements AiController {
   private readonly hand: AiHand;
   private wait = 0;
@@ -241,16 +207,13 @@ class StarCatchAI implements AiController {
     this.wait = this.interval;
 
     const me = this.game.baskets.find((b) => b.seat === this.player.seat)!;
-    const line = me.side === 'bottom' ? CATCH_Y_BOTTOM : CATCH_Y_TOP;
     const speed = this.game.starSpeed();
     const candidates = this.game.stars
-      .filter((s) => s.side === me.side)
-      .map((s) => ({ s, eta: (line - s.y) / (s.dir * speed) }))
+      .map((s) => ({ s, eta: (CATCH_Y - s.y) / speed }))
       .filter((c) => c.eta > 0 && Math.abs(c.s.x - me.x) / BASKET_SPEED <= c.eta + 0.1)
-      // 가장 가까운 별 우선, 곧 떨어질 별은 조금 더 우선. 다른 바구니가 더 가까운 별은 뒤로 미뤄 한곳에 몰리지 않게 한다.
       .map((c) => {
         const mine = Math.abs(c.s.x - me.x);
-        const contested = this.game.baskets.some((b) => b !== me && b.side === me.side && Math.abs(c.s.x - b.x) < mine);
+        const contested = this.game.baskets.some((b) => b !== me && Math.abs(c.s.x - b.x) < mine);
         return { ...c, cost: mine + c.eta * 25 + (contested ? 60 : 0) };
       })
       .sort((a, b) => a.cost - b.cost);
@@ -259,8 +222,7 @@ class StarCatchAI implements AiController {
 
     let screenDir: -1 | 0 | 1 = 0;
     if (target && Math.abs(target.x - me.x) > 3) screenDir = target.x > me.x ? 1 : -1;
-    // 버튼은 플레이어 기준 좌우
-    const local = (me.side === 'top' ? -screenDir : screenDir) as -1 | 0 | 1;
+    const local = (me.flipped ? -screenDir : screenDir) as -1 | 0 | 1;
     if (local === this.dir) return;
     if (this.dir !== 0) this.hand.releaseIn(this.dir < 0 ? BTN_LEFT : BTN_RIGHT);
     if (local !== 0) this.hand.pressIn(local < 0 ? BTN_LEFT : BTN_RIGHT);

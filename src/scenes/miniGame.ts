@@ -1,10 +1,11 @@
 import type { Game } from '../core/game';
 import { createRng } from '../core/rng';
 import type { Scene } from '../core/scene';
-import { BUTTON_COUNT, buttonAt, PlayerControls } from '../input/controls';
+import { BUTTON_COUNT, PlayerControls } from '../input/controls';
+import { padAt, padButtons, type PadButton } from '../input/padButtons';
 import type { Seat } from '../input/seats';
-import { rectZone, type InputEvent } from '../input/touch';
-import { drawButtonHints } from '../minigames/common';
+import type { InputEvent, Zone } from '../input/touch';
+import { drawPadButtons } from '../minigames/common';
 import { buildPlayers } from '../minigames/players';
 import type { AiController, MiniGame, MiniGameEntry, PlayerInfo } from '../minigames/types';
 import type { Renderer } from '../render/renderer';
@@ -21,6 +22,7 @@ export class MiniGameScene implements Scene {
   private players: PlayerInfo[] = [];
   private readonly controls = new Map<Seat, PlayerControls>();
   private ais: AiController[] = [];
+  private pads: PadButton[] = [];
   /** 손가락(pointerId) → 누르고 있는 자리·버튼 */
   private readonly fingers = new Map<number, { seat: Seat; button: number }>();
   private t = 0;
@@ -48,7 +50,8 @@ export class MiniGameScene implements Scene {
       sfx: audio,
     });
     this.ais = this.players.filter((p) => p.isAI).map((p) => createAI(p, this.controls.get(p.seat)!));
-    input.setZones(session.players.map((p) => rectZone(p.seat, p.zone)));
+    this.pads = padButtons(session.players, this.entry.controls);
+    input.setZones(padZones(this.pads));
   }
 
   update(dt: number): void {
@@ -74,18 +77,19 @@ export class MiniGameScene implements Scene {
     }
   }
 
-  /** 사람의 터치를 그 사람의 버튼 누름/뗌으로 바꾼다. 좌우 버튼은 손가락이 미끄러지면 옮겨 간다. */
+  /** 사람의 터치를 그 사람의 버튼 누름/뗌으로 바꾼다. 좌우 버튼은 손가락이 옆 버튼으로 미끄러지면 옮겨 간다. */
   private route(e: InputEvent): void {
     const player = this.players.find((p) => p.seat === e.touch.zone && !p.isAI);
     const controls = player && this.controls.get(player.seat);
-    if (!player?.zone || !controls) return;
+    if (!player || !controls) return;
     const held = this.fingers.get(e.touch.id);
     if (e.type === 'up') {
       if (held) controls.release(held.button);
       this.fingers.delete(e.touch.id);
       return;
     }
-    const button = buttonAt(this.entry.controls, player.zone, player.flipped, e.touch.x);
+    const pad = padAt(this.pads, e.touch.x, e.touch.y, player.seat);
+    const button = pad?.index ?? held?.button ?? 0;
     if (e.type === 'down') {
       controls.press(button);
       this.fingers.set(e.touch.id, { seat: player.seat, button });
@@ -98,6 +102,12 @@ export class MiniGameScene implements Scene {
 
   render(r: Renderer): void {
     this.mg.render(r);
-    drawButtonHints(r, this.players, this.controls, this.entry.controls, this.t, this.mg.canPress?.bind(this.mg));
+    drawPadButtons(r, this.pads, this.players, this.controls, this.entry.controls, this.t, this.mg.canPress?.bind(this.mg));
   }
+}
+
+/** 자리마다 그 사람 버튼들의 판정 원을 합친 터치 구역 */
+export function padZones(pads: readonly PadButton[]): Zone[] {
+  const seats = [...new Set(pads.map((p) => p.seat))];
+  return seats.map((seat) => ({ id: seat, contains: (x, y) => padAt(pads, x, y, seat) !== null }));
 }

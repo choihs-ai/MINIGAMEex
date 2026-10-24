@@ -7,6 +7,11 @@ import type { Renderer } from '../render/renderer';
 import { CHAR_SIZE, drawCharacter } from '../ui/characters';
 import { DIGIT_SMALL, drawNumber, drawWord, WORD_HEIGHT } from '../ui/bigText';
 
+export interface ResultAction {
+  label: string;
+  next: () => Scene;
+}
+
 export interface ResultRow {
   seat: Seat;
   /** 이 판의 점수(없으면 숫자를 안 보여준다) */
@@ -14,36 +19,47 @@ export interface ResultRow {
   isAI: boolean;
 }
 
-const BASELINE = 148;
-const MAX_BAR = 80;
+const BASELINE = 136;
+const MAX_BAR = 72;
 const MIN_BAR = 8;
 const BAR_W = 40;
 const GROW_TIME = 1.2;
 const GROW_STEPS = 12;
-const TAP_DELAY = 1.2;
+const TAP_DELAY = 1.0;
+const ACTION_W = 48;
+const ACTION_H = 15;
+const ACTION_Y = 160;
+
+const actionRect = (i: number, n: number) => ({
+  x: 160 - (n * ACTION_W + (n - 1) * 10) / 2 + i * (ACTION_W + 10),
+  y: ACTION_Y,
+  w: ACTION_W,
+  h: ACTION_H,
+});
 
 /**
  * 결과 막대. 막대 높이는 순위로 정하고, 1위(공동 포함) 막대 위 캐릭터는 승리 포즈, 나머지는 막대 아래에서 패배 포즈.
- * 1인 모드에서는 AI를 CPU로 표시하고 사람만 강조한다.
+ * 1인 모드에서는 AI를 CPU로 표시하고 사람만 강조한다. 아래 버튼(다시/메뉴 등)으로 다음 화면을 고른다.
  */
 export class ResultScene implements Scene {
   private t = 0;
   private revealed = false;
   private revealedAt = 0;
   private leaving = false;
+  private pressed = -1;
   private readonly rows: ResultRow[];
 
   constructor(
     private readonly game: Game,
     rows: readonly ResultRow[],
     private readonly ranking: readonly Seat[][],
-    private readonly next: () => Scene,
+    private readonly actions: readonly ResultAction[],
   ) {
     this.rows = [...rows].sort((a, b) => a.seat - b.seat);
   }
 
   enter(): void {
-    this.game.input.setZones([rectZone(0, { x: 0, y: 0, w: 320, h: 180 })]);
+    this.game.input.setZones(this.actions.map((_, i) => rectZone(i, actionRect(i, this.actions.length))));
   }
 
   private rankIndex(seat: Seat): number {
@@ -69,11 +85,15 @@ export class ResultScene implements Scene {
         if (this.isWinner(row.seat)) fx.burst(this.centerX(row.seat), BASELINE - MAX_BAR - 20, SEAT_COLORS[row.seat].base, 12);
       }
     }
+    const ready = this.revealed && this.t - this.revealedAt > TAP_DELAY;
     for (const e of input.tracker.drain()) {
-      if (e.type === 'down' && this.revealed && this.t - this.revealedAt > TAP_DELAY && !this.leaving) {
-        this.leaving = true;
+      if (!ready || this.leaving) continue;
+      if (e.type === 'down') {
+        this.pressed = e.touch.zone;
         audio.click();
-        scenes.goto(this.next());
+      } else if (e.type === 'up' && e.touch.zone === this.pressed) {
+        this.leaving = true;
+        scenes.goto(this.actions[this.pressed].next());
       }
     }
   }
@@ -125,8 +145,15 @@ export class ResultScene implements Scene {
       r.text(label, cx, BASELINE + 7, isAI ? c.shadow : c.base, 'center');
     }
 
-    if (this.revealed && this.t - this.revealedAt > TAP_DELAY && Math.floor(this.t * 2) % 2 === 0) {
-      r.text('탭하면 계속', 160, 168, PAL.text, 'center');
+    if (this.revealed && this.t - this.revealedAt > TAP_DELAY) {
+      this.actions.forEach((a, i) => {
+        const b = actionRect(i, this.actions.length);
+        const dy = this.pressed === i ? 2 : 0;
+        r.rect(b.x, b.y + 2, b.w, b.h, PAL.line);
+        r.rect(b.x, b.y + dy, b.w, b.h, PAL.line);
+        r.rect(b.x + 1, b.y + 1 + dy, b.w - 2, b.h - 2, i === 0 ? PAL.text : PAL.bgMid);
+        r.text(a.label, b.x + b.w / 2, b.y + 3 + dy, i === 0 ? PAL.line : PAL.text, 'center');
+      });
     }
   }
 }

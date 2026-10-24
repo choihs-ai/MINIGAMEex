@@ -9,7 +9,9 @@ import type { SceneManager } from './sceneManager';
 
 /** 화면들이 공유하는 현재 판 정보 */
 export interface Session {
-  /** 참가한 모서리(참가 순서). 2인일 때만 순서가 1P/2P를 정한다. */
+  /** 메인 메뉴에서 고른 인원 수(1~4). 1이면 AI 3명과 함께 */
+  playerCount: number;
+  /** 참가 자리(1P부터 인원 수만큼) */
   joined: Seat[];
   /** 게임 중 배치(인원 확정 뒤 계산) */
   players: PlayerSlot[];
