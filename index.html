@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0B0B0F" />
+    <title>4인용게임EX</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0b0f;
+      }
+      body {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+        overscroll-behavior: none;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #screen {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      /* env(safe-area-inset-*) 값을 JS에서 읽기 위한 보이지 않는 요소 */
+      #safe-area-probe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        visibility: hidden;
+        pointer-events: none;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+          env(safe-area-inset-left);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="screen"></canvas>
+    <div id="safe-area-probe"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
