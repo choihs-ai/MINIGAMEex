@@ -16,16 +16,21 @@ npm test           # 로직 테스트 (Vitest)
 npm run build      # 타입 검사 + 빌드 → dist/
 ```
 
+개발용 바로가기(주소 뒤에 붙임): `#render` `#chars` `#input1`~`#input4` `#result1`~`#result4`
+
 `main` 브랜치에 푸시하면 GitHub Actions가 테스트·빌드 후 GitHub Pages에 배포한다.
 
 ## 구조
 
 ```
 src/
-  core/    게임 루프(60Hz 고정 간격), 씬 인터페이스, 페이지 제스처 잠금
-  render/  320×180 버퍼 → 정수배 확대, 팔레트, 픽셀 폰트
-  ui/      가로 모드 안내 화면
-  debug/   1단계 렌더러 테스트 화면
+  core/    게임 루프(60Hz 고정 간격), 장면 전환(브라운관), 화면 흔들림·파편, 순위 계산, 시드 난수
+  input/   좌석 배치(순수 로직), 손가락별 멀티터치 추적, 포인터 이벤트 연결
+  audio/   WebAudio 8비트 효과음
+  render/  320×180 버퍼 → 정수배 확대, 팔레트, 픽셀 폰트, 픽셀 그림 격자
+  scenes/  타이틀, 로비(동전 넣기), 카운트다운, 입력 테스트, 결과
+  ui/      캐릭터 4종 스프라이트, 큰 글자(7세그·WIN·GO), 아케이드 버튼, 가로 모드 안내
+  debug/   렌더러 테스트(#render), 캐릭터 시트(#chars)
 tests/     Vitest 로직 테스트
 ```
 

@@ -22,7 +22,7 @@ export class Renderer {
     return this.screen.height;
   }
 
-  private get ctx(): CanvasRenderingContext2D {
+  get ctx(): CanvasRenderingContext2D {
     return this.screen.bufferCtx;
   }
 
@@ -34,6 +34,24 @@ export class Renderer {
   rect(x: number, y: number, w: number, h: number, color: Color): void {
     this.ctx.fillStyle = color;
     this.ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+
+  /** 채운 원. 반지름은 정수 픽셀, 중심은 (cx, cy) 픽셀 칸의 가운데 */
+  disc(cx: number, cy: number, radius: number, color: Color): void {
+    cx = Math.round(cx);
+    cy = Math.round(cy);
+    for (let dy = -radius; dy <= radius; dy++) {
+      const dx = Math.floor(Math.sqrt(radius * radius + radius - dy * dy + 0.25));
+      this.rect(cx - dx, cy + dy, dx * 2 + 1, 1, color);
+    }
+  }
+
+  /** fn 안에서 그리는 것을 (x, y, w, h) 영역 기준 180도 돌려 그린다(위쪽 플레이어용). 정수 픽셀 격자가 유지된다. */
+  rotated180(x: number, y: number, w: number, h: number, fn: () => void): void {
+    this.ctx.save();
+    this.ctx.transform(-1, 0, 0, -1, Math.round(2 * x + w), Math.round(2 * y + h));
+    fn();
+    this.ctx.restore();
   }
 
   /** 1px 테두리만 있는 사각형 */
