@@ -17,6 +17,21 @@ export interface Session {
   players: PlayerSlot[];
   /** 1인 모드 AI 난이도(설정 화면은 6단계) */
   difficulty: Difficulty;
+  /** 토너먼트 설정(다시 하기에 그대로 쓴다) */
+  tournament: TournamentSettings;
+  /** 직전 토너먼트에 나온 게임(다음 뽑기에서 가중치를 낮춘다) */
+  lastSet: string[];
+  /** 권한을 거부해 뽑기에서 빼는 게임(G39 기울기, G40 마이크) */
+  deniedGames: string[];
+}
+
+export interface TournamentSettings {
+  /** 판 수 */
+  rounds: number;
+  /** 반드시 넣을 게임 */
+  fixed: string[];
+  /** 빼는 게임 */
+  banned: string[];
 }
 
 /** 모든 화면이 쓰는 공통 서비스 모음 */

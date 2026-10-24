@@ -17,6 +17,7 @@ import { GAMES } from './minigames/registry';
 import { playArcade } from './modes/arcade';
 import { InputTestScene } from './scenes/inputTest';
 import { MenuScene } from './scenes/menu';
+import { TournamentSetupScene } from './scenes/tournamentSetup';
 import { ResultScene } from './scenes/result';
 import { RotateNotice } from './ui/rotateNotice';
 
@@ -29,7 +30,8 @@ function byId<T extends HTMLElement>(id: string): T {
 }
 
 /**
- * 개발용 바로가기: #render #chars #input[1-4] #result[1-4] #G01[-인원] (예: #G22-3, 인원 생략 시 1인+AI).
+ * 개발용 바로가기: #render #chars #input[1-4] #result[1-4] #G01[-인원] (예: #G22-3, 인원 생략 시 1인+AI),
+ * #tournament[2-4](토너먼트 설정, 인원 생략 시 4인).
  * 없으면 메인 메뉴로 시작한다.
  */
 function pickStart(game: Game): Scene {
@@ -52,6 +54,10 @@ function pickStart(game: Game): Scene {
     const entries = game.session.players.map((p, i) => ({ seat: p.seat, score: [42, 31, 17, 8][i] }));
     const rows = entries.map((e) => ({ ...e, isAI: false }));
     return new ResultScene(game, rows, rankByScore(entries), [{ label: '메뉴', next: () => new MenuScene(game) }]);
+  }
+  if (hash.startsWith('tournament')) {
+    setPlayers();
+    if (game.session.playerCount >= 2) return new TournamentSetupScene(game);
   }
   if (gameMatch && GAMES[gameMatch[1]]) {
     setPlayers();
@@ -81,7 +87,15 @@ async function boot(): Promise<void> {
     audio,
     fx,
     scenes,
-    session: { playerCount: 2, joined: [], players: [], difficulty: 'normal' },
+    session: {
+      playerCount: 2,
+      joined: [],
+      players: [],
+      difficulty: 'normal',
+      tournament: { rounds: 7, fixed: [], banned: [] },
+      lastSet: [],
+      deniedGames: [],
+    },
     slowmo: (seconds) => {
       slowLeft = seconds;
     },

@@ -25,8 +25,17 @@ const PENALTY_TIME = SIGNAL_TIMEOUT;
 export type Phase = 'wait' | 'signal' | 'reveal';
 type Pose = 'ready' | 'slash' | 'down';
 
+export interface QuickDrawOptions {
+  /** 라운드 수(기본 3, 서든데스는 1) */
+  rounds?: number;
+  /** 1라운드를 연습으로(너무 빨리 눌러도 경고만). 서든데스에서는 끈다. */
+  practice?: boolean;
+}
+
 export class QuickDraw implements MiniGame {
   readonly code = 'G19';
+  readonly rounds: number;
+  private readonly practice: boolean;
   round = 0;
   phase: Phase = 'wait';
   /** 현재 단계가 시작된 뒤 지난 시간 */
@@ -45,6 +54,11 @@ export class QuickDraw implements MiniGame {
   private ctx!: GameContext;
   private done = false;
   private t = 0;
+
+  constructor({ rounds = ROUNDS, practice = true }: QuickDrawOptions = {}) {
+    this.rounds = rounds;
+    this.practice = practice;
+  }
 
   setup(ctx: GameContext): void {
     this.ctx = ctx;
@@ -148,7 +162,7 @@ export class QuickDraw implements MiniGame {
   }
 
   private early(p: PlayerInfo): void {
-    if (this.round === 0) {
+    if (this.round === 0 && this.practice) {
       // 1라운드는 연습: 경고만 하고 계속 참가
       this.warned.set(p.seat, this.t);
       this.ctx.sfx.buzz();
@@ -166,7 +180,7 @@ export class QuickDraw implements MiniGame {
       if (!this.reacted.has(p.seat)) this.reactions.get(p.seat)!.push(PENALTY_TIME);
     }
     this.round++;
-    if (this.round >= ROUNDS) this.done = true;
+    if (this.round >= this.rounds) this.done = true;
     else this.startRound();
   }
 
@@ -194,9 +208,9 @@ export class QuickDraw implements MiniGame {
         r.ctx.drawImage(fighterSprite(p.seat, p.color, pose, mirror), sx, sy);
         drawMarker(r, pos.x, sy - 2, p.color.base);
         // 이긴 라운드 표시
-        for (let i = 0; i < ROUNDS; i++) {
+        for (let i = 0; i < this.rounds; i++) {
           const filled = i < (this.wins.get(p.seat) ?? 0);
-          const px = pos.x - (ROUNDS * 6) / 2 + i * 6;
+          const px = pos.x - (this.rounds * 6) / 2 + i * 6;
           r.rect(px, pos.y + 3, 5, 4, PAL.line);
           r.rect(px + 1, pos.y + 4, 3, 2, filled ? p.color.base : PAL.bgDark);
         }
@@ -218,7 +232,7 @@ export class QuickDraw implements MiniGame {
       drawBang(r, 160, 91);
     }
     r.rect(146, 0, 28, 11, PAL.line);
-    r.text(`${Math.min(this.round + 1, ROUNDS)}/${ROUNDS}`, 160, 1, PAL.text, 'center');
+    r.text(`${Math.min(this.round + 1, this.rounds)}/${this.rounds}`, 160, 1, PAL.text, 'center');
   }
 }
 
@@ -319,5 +333,13 @@ export const G19 = defineGame({
   code: 'G19',
   controls: 'one',
   create: () => new QuickDraw(),
+  createAI: (game, player, controls) => new QuickDrawAI(game, player, controls),
+});
+
+/** 토너먼트 동점 서든데스: 1라운드, 연습 없음(신호 전에 누르면 바로 실격) */
+export const G19_SUDDEN_DEATH = defineGame({
+  code: 'G19',
+  controls: 'one',
+  create: () => new QuickDraw({ rounds: 1, practice: false }),
   createAI: (game, player, controls) => new QuickDrawAI(game, player, controls),
 });

@@ -4,6 +4,7 @@ import { PAL } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { DIGIT_BIG, drawNumber, drawWord, WORD_HEIGHT } from '../ui/bigText';
 import { padButtons } from '../input/padButtons';
+import type { PlayerSlot } from '../input/seats';
 import { drawPadButtons } from '../minigames/common';
 import { buildPlayers } from '../minigames/players';
 import { GAMES } from '../minigames/registry';
@@ -23,6 +24,8 @@ export class CountdownScene implements Scene {
     private readonly game: Game,
     private readonly code: string,
     private readonly next: () => Scene,
+    /** 이 판에 참가하는 사람(없으면 전원) */
+    private readonly slots?: readonly PlayerSlot[],
   ) {}
 
   enter(): void {
@@ -47,9 +50,10 @@ export class CountdownScene implements Scene {
   render(r: Renderer): void {
     r.clear(PAL.bgDark);
     const { session } = this.game;
+    const humans = this.slots ?? session.players;
     // 각자 누를 버튼을 미리 보여준다
     const layout = GAMES[this.code].controls;
-    drawPadButtons(r, padButtons(session.players, layout), buildPlayers(session.players, session.difficulty), null, layout, this.t);
+    drawPadButtons(r, padButtons(humans, layout), buildPlayers(humans, session.difficulty), null, layout, this.t);
     // 게임 아이콘(이름·설명 없음): 가운데 위, 위쪽에 앉은 사람용으로 180도 돌린 것을 아래에
     const drawIcon = (y: number) => {
       const ix = 160 - ICON_SIZE / 2;
@@ -58,7 +62,7 @@ export class CountdownScene implements Scene {
       r.ctx.drawImage(gameIcon(this.code), ix, y);
     };
     drawIcon(36);
-    if (session.players.some((p) => p.flipped)) r.rotated180(144, 128, 32, 32, () => drawIcon(136));
+    if (humans.some((p) => p.flipped)) r.rotated180(144, 128, 32, 32, () => drawIcon(136));
     const cx = 160;
     const cy = 90;
     const text = STEPS[Math.max(0, this.step)];

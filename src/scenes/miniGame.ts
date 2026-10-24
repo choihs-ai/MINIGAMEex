@@ -3,7 +3,7 @@ import { createRng } from '../core/rng';
 import type { Scene } from '../core/scene';
 import { BUTTON_COUNT, PlayerControls } from '../input/controls';
 import { padAt, padButtons, type PadButton } from '../input/padButtons';
-import type { Seat } from '../input/seats';
+import type { PlayerSlot, Seat } from '../input/seats';
 import type { InputEvent, Zone } from '../input/touch';
 import { drawPadButtons } from '../minigames/common';
 import { buildPlayers } from '../minigames/players';
@@ -33,11 +33,14 @@ export class MiniGameScene implements Scene {
     private readonly game: Game,
     private readonly entry: MiniGameEntry,
     private readonly onDone: (ranking: Seat[][], rows: ResultRow[]) => Scene,
+    /** 이 판에 참가하는 사람(없으면 전원). 서든데스처럼 일부만 뛸 때 쓴다. */
+    private readonly slots?: readonly PlayerSlot[],
   ) {}
 
   enter(): void {
     const { session, input, fx, audio } = this.game;
-    this.players = buildPlayers(session.players, session.difficulty);
+    const humans = this.slots ?? session.players;
+    this.players = buildPlayers(humans, session.difficulty);
     for (const p of this.players) this.controls.set(p.seat, new PlayerControls(BUTTON_COUNT[this.entry.controls]));
     const { game, createAI } = this.entry.create();
     this.mg = game;
@@ -50,7 +53,7 @@ export class MiniGameScene implements Scene {
       sfx: audio,
     });
     this.ais = this.players.filter((p) => p.isAI).map((p) => createAI(p, this.controls.get(p.seat)!));
-    this.pads = padButtons(session.players, this.entry.controls);
+    this.pads = padButtons(humans, this.entry.controls);
     input.setZones(padZones(this.pads));
   }
 

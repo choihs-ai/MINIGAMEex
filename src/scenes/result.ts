@@ -6,10 +6,22 @@ import { PAL, SEAT_COLORS } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { CHAR_SIZE, drawCharacter } from '../ui/characters';
 import { DIGIT_SMALL, drawNumber, drawWord, WORD_HEIGHT } from '../ui/bigText';
+import { drawUiButton } from '../ui/uiButton';
 
 export interface ResultAction {
   label: string;
   next: () => Scene;
+}
+
+export interface ResultOptions {
+  /** 왼쪽 아래 작은 제목(예: "3/7", "최종 결과") */
+  title?: string;
+  /** 오른쪽 아래 작은 설명(예: 동점을 어떻게 가렸는지) */
+  note?: string;
+  /** 이번 판에 얻은 순위점(막대 위에 +N) */
+  gained?: ReadonlyMap<Seat, number>;
+  /** 지금까지 총점(이름 옆에) */
+  totals?: ReadonlyMap<Seat, number>;
 }
 
 export interface ResultRow {
@@ -21,12 +33,14 @@ export interface ResultRow {
 
 const BASELINE = 136;
 const MAX_BAR = 72;
+/** +점수 줄을 보여줄 때는 막대를 낮춰 위 공간을 확보한다 */
+const MAX_BAR_WITH_POINTS = 62;
 const MIN_BAR = 8;
 const BAR_W = 40;
 const GROW_TIME = 1.2;
 const GROW_STEPS = 12;
 const TAP_DELAY = 1.0;
-const ACTION_W = 48;
+const ACTION_W = 56;
 const ACTION_H = 15;
 const ACTION_Y = 160;
 
@@ -40,6 +54,7 @@ const actionRect = (i: number, n: number) => ({
 /**
  * 결과 막대. 막대 높이는 순위로 정하고, 1위(공동 포함) 막대 위 캐릭터는 승리 포즈, 나머지는 막대 아래에서 패배 포즈.
  * 1인 모드에서는 AI를 CPU로 표시하고 사람만 강조한다. 아래 버튼(다시/메뉴 등)으로 다음 화면을 고른다.
+ * 토너먼트에서는 이번 판 순위점(+N)과 총점을 함께 보여준다.
  */
 export class ResultScene implements Scene {
   private t = 0;
@@ -54,6 +69,7 @@ export class ResultScene implements Scene {
     rows: readonly ResultRow[],
     private readonly ranking: readonly Seat[][],
     private readonly actions: readonly ResultAction[],
+    private readonly opts: ResultOptions = {},
   ) {
     this.rows = [...rows].sort((a, b) => a.seat - b.seat);
   }
@@ -82,7 +98,7 @@ export class ResultScene implements Scene {
       fx.shake(3, 0.2);
       this.game.slowmo(0.3);
       for (const row of this.rows) {
-        if (this.isWinner(row.seat)) fx.burst(this.centerX(row.seat), BASELINE - MAX_BAR - 20, SEAT_COLORS[row.seat].base, 12);
+        if (this.isWinner(row.seat)) fx.burst(this.centerX(row.seat), BASELINE - this.maxBar - 20, SEAT_COLORS[row.seat].base, 12);
       }
     }
     const ready = this.revealed && this.t - this.revealedAt > TAP_DELAY;
@@ -91,9 +107,11 @@ export class ResultScene implements Scene {
       if (e.type === 'down') {
         this.pressed = e.touch.zone;
         audio.click();
-      } else if (e.type === 'up' && e.touch.zone === this.pressed) {
-        this.leaving = true;
-        scenes.goto(this.actions[this.pressed].next());
+      } else if (e.type === 'up') {
+        if (e.touch.zone === this.pressed) {
+          this.leaving = true;
+          scenes.goto(this.actions[this.pressed].next());
+        } else this.pressed = -1;
       }
     }
   }
@@ -103,10 +121,14 @@ export class ResultScene implements Scene {
     return Math.round((320 * (idx + 1)) / (this.rows.length + 1));
   }
 
+  private get maxBar(): number {
+    return this.opts.gained ? MAX_BAR_WITH_POINTS : MAX_BAR;
+  }
+
   private barHeight(seat: Seat): number {
     const groups = Math.max(1, this.ranking.length);
     const idx = Math.max(0, this.rankIndex(seat));
-    return Math.max(MIN_BAR, Math.round((MAX_BAR * (groups - idx)) / groups));
+    return Math.max(MIN_BAR, Math.round((this.maxBar * (groups - idx)) / groups));
   }
 
   render(r: Renderer): void {
@@ -138,21 +160,25 @@ export class ResultScene implements Scene {
           drawNumber(r, String(score), cx, y, DIGIT_SMALL, PAL.text, { align: 'center' });
           y -= 3;
         }
+        const gained = this.opts.gained?.get(seat);
+        if (gained !== undefined) {
+          y -= 9;
+          r.text(`+${gained}`, cx, y, gained > 0 ? PAL.yellow : PAL.bgMid, 'center');
+          y -= 2;
+        }
         if (win) drawWord(r, 'WIN', cx, y - WORD_HEIGHT, PAL.text, { shadow: PAL.line, align: 'center' });
       }
-      const label = isAI ? 'CPU' : `${seat + 1}P`;
-      if (soloMode && !isAI) r.frame(cx - 12, BASELINE + 5, 24, 13, c.base);
+      const total = this.opts.totals?.get(seat);
+      const label = (isAI ? 'CPU' : `${seat + 1}P`) + (total !== undefined ? ` ${total}점` : '');
+      if (soloMode && !isAI) r.frame(cx - r.textWidth(label) / 2 - 4, BASELINE + 5, r.textWidth(label) + 8, 13, c.base);
       r.text(label, cx, BASELINE + 7, isAI ? c.shadow : c.base, 'center');
     }
 
+    if (this.opts.title) r.text(this.opts.title, 6, ACTION_Y + 4, PAL.text);
+    if (this.opts.note && this.revealed) r.text(this.opts.note, 314, ACTION_Y + 4, PAL.yellow, 'right');
     if (this.revealed && this.t - this.revealedAt > TAP_DELAY) {
       this.actions.forEach((a, i) => {
-        const b = actionRect(i, this.actions.length);
-        const dy = this.pressed === i ? 2 : 0;
-        r.rect(b.x, b.y + 2, b.w, b.h, PAL.line);
-        r.rect(b.x, b.y + dy, b.w, b.h, PAL.line);
-        r.rect(b.x + 1, b.y + 1 + dy, b.w - 2, b.h - 2, i === 0 ? PAL.text : PAL.bgMid);
-        r.text(a.label, b.x + b.w / 2, b.y + 3 + dy, i === 0 ? PAL.line : PAL.text, 'center');
+        drawUiButton(r, actionRect(i, this.actions.length), a.label, { primary: i === 0, pressed: this.pressed === i });
       });
     }
   }
