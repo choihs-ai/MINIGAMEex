@@ -3,8 +3,9 @@
 한 대의 스마트폰(가로)을 1~4명이 둘러싸고 즐기는 로컬 멀티플레이 미니게임 모음 웹게임.
 
 - 플레이: https://choihs-ai.github.io/MINIGAMEex/
-- 개발 지시서: [`CLAUDE CODE 프롬프트.md`](./CLAUDE%20CODE%20프롬프트.md)
-- 미니게임 세부표: [`games.json`](./games.json), `4인용게임EX_미니게임_세부표.xlsx`
+- 개발 지시서: [`docs/CLAUDE_CODE_프롬프트.md`](./docs/CLAUDE_CODE_프롬프트.md)
+- 미니게임 세부표: [`docs/games.json`](./docs/games.json), `docs/4인용게임EX_미니게임_세부표.xlsx`
+- 아트 레퍼런스: [`docs/art/`](./docs/art)
 
 ## 개발
 

@@ -746,9 +746,9 @@
   "ranking": "순수 운",
   "duration": "30초",
   "ai": "-",
-  "solo": true,
+  "solo": false,
   "random7": false,
-  "note": "운 게임이라 기본 제외(설정에서 포함 가능)",
+  "note": "운 게임이라 기본 제외",
   "partyOnly": true
  },
  {
