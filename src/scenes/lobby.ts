@@ -10,6 +10,8 @@ import { CountdownScene } from './countdown';
 /** 참가자 전원이 각자 자기 칸을 누르고 있어야 하는 시간(초) */
 const HOLD_TIME = 1.6;
 const JOIN_POP = 0.5;
+/** 이미 참가한 칸을 이 시간(ms)보다 짧게 눌렀다 떼면 참가 취소. 더 오래 누르면 "꾹"(시작)이다. */
+const LEAVE_TAP_MS = 350;
 
 const panelRect = (seat: Seat): Rect => {
   const c = cornerRect(seat);
@@ -23,6 +25,8 @@ export class LobbyScene implements Scene {
   private lastStep = 0;
   private starting = false;
   private readonly joinedAt = new Map<Seat, number>();
+  /** 이미 참가한 칸에서 시작된 터치(손가락 id). 짧게 끝나면 취소로 본다. */
+  private readonly leaveCandidates = new Set<number>();
 
   constructor(private readonly game: Game) {}
 
@@ -37,10 +41,15 @@ export class LobbyScene implements Scene {
     this.t += dt;
     const { input, audio, fx, session } = this.game;
     for (const e of input.tracker.drain()) {
-      if (e.type !== 'down') continue;
       const seat = e.touch.zone as Seat;
+      if (e.type === 'up' && this.leaveCandidates.delete(e.touch.id)) {
+        if (performance.now() - e.touch.startTime < LEAVE_TAP_MS && !this.starting) this.leave(seat);
+        continue;
+      }
+      if (e.type !== 'down') continue;
       if (session.joined.includes(seat)) {
         audio.click();
+        this.leaveCandidates.add(e.touch.id);
         continue;
       }
       session.joined.push(seat);
@@ -67,6 +76,17 @@ export class LobbyScene implements Scene {
       audio.go();
       this.game.scenes.goto(new CountdownScene(this.game));
     }
+  }
+
+  private leave(seat: Seat): void {
+    const { session, audio, fx } = this.game;
+    session.joined = session.joined.filter((s) => s !== seat);
+    this.joinedAt.delete(seat);
+    this.hold = 0;
+    this.lastStep = 0;
+    audio.lose();
+    const p = panelRect(seat);
+    fx.burst(p.x + p.w / 2, p.y + p.h / 2, PAL.bgMid, 8);
   }
 
   /** 참가자가 한 명 이상이고, 모두 자기 칸에 손가락을 올리고 있는가 */
@@ -98,11 +118,12 @@ export class LobbyScene implements Scene {
         drawCharacter(r.ctx, seat, popping ? 'win' : 'idle', popping ? since : this.t, cx - CHAR_SIZE / 2, p.y + 12);
         r.text(`${seat + 1}P`, cx, p.y + 40, color.base, 'center');
         const holding = this.game.input.tracker.count(seat) > 0;
-        r.text(holding ? '꾹!' : '꾹 눌러서 시작', cx, p.y + 52, holding ? PAL.text : color.shadow, 'center');
+        r.text(holding ? '꾹!' : '꾹 눌러서 시작', cx, p.y + 50, holding ? PAL.text : color.shadow, 'center');
+        r.text('톡 = 취소', cx, p.y + 60, color.shadow, 'center');
         // 전원이 누르고 있는 동안 차오르는 시작 게이지
         const bw = p.w - 24;
-        r.rect(p.x + 12, p.y + p.h - 12, bw, 4, PAL.line);
-        r.rect(p.x + 13, p.y + p.h - 11, Math.floor((bw - 2) * this.hold), 2, color.base);
+        r.rect(p.x + 12, p.y + p.h - 10, bw, 4, PAL.line);
+        r.rect(p.x + 13, p.y + p.h - 9, Math.floor((bw - 2) * this.hold), 2, color.base);
       } else {
         if (Math.floor(this.t * 2) % 2 === 0) r.text('동전 넣기', cx, p.y + 22, PAL.text, 'center');
         r.text('여기를 탭', cx, p.y + 38, color.shadow, 'center');
