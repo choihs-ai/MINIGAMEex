@@ -1,6 +1,7 @@
 import type { Sfx } from '../audio/sfx';
 import type { Input } from '../input/input';
 import type { PlayerSlot, Seat } from '../input/seats';
+import type { Difficulty } from '../minigames/types';
 import type { PixelFont } from '../render/font';
 import type { Screen } from '../render/screen';
 import type { Fx } from './fx';
@@ -12,6 +13,8 @@ export interface Session {
   joined: Seat[];
   /** 게임 중 배치(인원 확정 뒤 계산) */
   players: PlayerSlot[];
+  /** 1인 모드 AI 난이도(설정 화면은 6단계) */
+  difficulty: Difficulty;
 }
 
 /** 모든 화면이 쓰는 공통 서비스 모음 */

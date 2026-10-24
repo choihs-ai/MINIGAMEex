@@ -5,7 +5,8 @@ import { rectZone } from '../input/touch';
 import { PAL, SEAT_COLORS } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { drawCharacter, CHAR_SIZE } from '../ui/characters';
-import { CountdownScene } from './countdown';
+import { READY_GAMES } from '../minigames/registry';
+import { playSet } from '../modes/playlist';
 
 /** 참가자 전원이 각자 자기 칸을 누르고 있어야 하는 시간(초) */
 const HOLD_TIME = 1.6;
@@ -74,7 +75,7 @@ export class LobbyScene implements Scene {
       this.starting = true;
       session.players = layoutPlayers(session.joined);
       audio.go();
-      this.game.scenes.goto(new CountdownScene(this.game));
+      this.game.scenes.goto(playSet(this.game, READY_GAMES));
     }
   }
 

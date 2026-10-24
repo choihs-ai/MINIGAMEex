@@ -7,6 +7,7 @@ import { PAL, SEAT_COLORS } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { DIGIT_BIG, DIGIT_SMALL, drawNumber } from '../ui/bigText';
 import { inSeat } from '../ui/seatDraw';
+import { LobbyScene } from './lobby';
 import { ResultScene } from './result';
 
 const DURATION = 15;
@@ -42,7 +43,8 @@ export class InputTestScene implements Scene {
     if (this.left <= 0 && !this.done) {
       this.done = true;
       const entries = [...this.taps].map(([seat, score]) => ({ seat, score }));
-      this.game.scenes.goto(new ResultScene(this.game, entries, rankByScore(entries)));
+      const rows = entries.map((e) => ({ ...e, isAI: false }));
+      this.game.scenes.goto(new ResultScene(this.game, rows, rankByScore(entries), () => new LobbyScene(this.game)));
     }
   }
 

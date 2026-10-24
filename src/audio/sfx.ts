@@ -129,6 +129,43 @@ export class Sfx {
     this.tone(520, 0.28, { type: 'square', vol: 0.14, slideTo: 130 });
   }
 
+  /** 부딪힘 */
+  hit(): void {
+    this.noise(0.06, 0.16);
+    this.tone(140, 0.08, { vol: 0.14, slideTo: 90 });
+  }
+
+  /** 별을 받음 */
+  catchStar(): void {
+    this.tone(1320, 0.06, { vol: 0.12, slideTo: 1760 });
+  }
+
+  /** 칼을 뽑아 벰 */
+  slash(): void {
+    this.noise(0.12, 0.14);
+    this.tone(1400, 0.12, { type: 'sawtooth', vol: 0.08, slideTo: 300 });
+  }
+
+  /** 반칙·실패 */
+  buzz(): void {
+    this.tone(110, 0.25, { type: 'sawtooth', vol: 0.14 });
+  }
+
+  /** 지금이다! 신호 */
+  signal(): void {
+    this.tone(1047, 0.15, { vol: 0.16 });
+    this.tone(2093, 0.2, { type: 'triangle', vol: 0.1 });
+  }
+
+  /** 방향 전환 같은 아주 짧은 조작음 */
+  turn(): void {
+    this.tone(880, 0.03, { vol: 0.08 });
+  }
+
+  dash(): void {
+    this.tone(200, 0.12, { vol: 0.12, slideTo: 640 });
+  }
+
   /** 캐릭터별 참가음: 꾹이 딸깍, 레버 덜컹, 땡그랑 쨍, 캡슐 뽁 */
   character(seat: Seat): void {
     switch (seat) {

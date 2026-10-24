@@ -13,7 +13,10 @@ import { layoutPlayers, type Seat } from './input/seats';
 import { PixelFont } from './render/font';
 import { Renderer } from './render/renderer';
 import { Screen } from './render/screen';
+import { GAMES } from './minigames/registry';
+import { playSet } from './modes/playlist';
 import { InputTestScene } from './scenes/inputTest';
+import { LobbyScene } from './scenes/lobby';
 import { ResultScene } from './scenes/result';
 import { TitleScene } from './scenes/title';
 import { RotateNotice } from './ui/rotateNotice';
@@ -27,11 +30,13 @@ function byId<T extends HTMLElement>(id: string): T {
 }
 
 /**
- * 개발용 바로가기: #render #chars #input[1-4] #result[1-4]. 없으면 정상 흐름(타이틀)으로 시작한다.
+ * 개발용 바로가기: #render #chars #input[1-4] #result[1-4] #G01[-인원] (예: #G22-3, 인원 생략 시 1인+AI).
+ * 없으면 정상 흐름(타이틀)으로 시작한다.
  */
 function pickStart(game: Game): Scene {
   const hash = location.hash.slice(1);
-  const count = Number(hash.match(/(\d)$/)?.[1] ?? 4);
+  const gameMatch = hash.match(/^(G\d\d)(?:-(\d))?$/);
+  const count = gameMatch ? Number(gameMatch[2] ?? 1) : Number(hash.match(/(\d)$/)?.[1] ?? 4);
   const setPlayers = () => {
     game.session.joined = ([0, 1, 2, 3] as Seat[]).slice(0, Math.min(4, Math.max(1, count)));
     game.session.players = layoutPlayers(game.session.joined);
@@ -45,7 +50,12 @@ function pickStart(game: Game): Scene {
   if (hash.startsWith('result')) {
     setPlayers();
     const entries = game.session.players.map((p, i) => ({ seat: p.seat, score: [42, 31, 17, 8][i] }));
-    return new ResultScene(game, entries, rankByScore(entries));
+    const rows = entries.map((e) => ({ ...e, isAI: false }));
+    return new ResultScene(game, rows, rankByScore(entries), () => new LobbyScene(game));
+  }
+  if (gameMatch && GAMES[gameMatch[1]]) {
+    setPlayers();
+    return playSet(game, [gameMatch[1]]);
   }
   return new TitleScene(game);
 }
@@ -71,7 +81,7 @@ async function boot(): Promise<void> {
     audio,
     fx,
     scenes,
-    session: { joined: [], players: [] },
+    session: { joined: [], players: [], difficulty: 'normal' },
     slowmo: (seconds) => {
       slowLeft = seconds;
     },
