@@ -12,7 +12,7 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 // 순서는 처음 한 번만 보여 준다(나머지는 남이 누르는 걸 보고 외워야 한다).
 
 export const PRESS_TIME = 3;
-export const DURATION = 50;
+export const DURATION = 40;
 const FLASH = 0.25;
 const PAUSE = 0.5;
 

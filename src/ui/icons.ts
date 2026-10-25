@@ -51,32 +51,6 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
   },
   // 별
   G22: (g) => star(g, 8, 8.6, 7.6, 3.2),
-  // 밧줄: 꼬인 줄과 가운데 매듭
-  G02: (g) => {
-    for (let x = 0; x < 16; x++) {
-      g.set(x, 7, x % 3 === 0 ? PAL.yellowShadow : PAL.yellow);
-      g.set(x, 8, x % 3 === 1 ? PAL.yellowShadow : PAL.yellow);
-    }
-    g.ellipse(8, 8, 3, 3, PAL.red, PAL.redShadow);
-  },
-  // 블록 셋을 어긋나게 쌓은 탑
-  G14: (g) => {
-    g.rect(2, 11, 11, 4, PAL.red);
-    g.rect(2, 14, 11, 1, PAL.redShadow);
-    g.rect(4, 7, 11, 4, PAL.blue);
-    g.rect(4, 10, 11, 1, PAL.blueShadow);
-    g.rect(1, 3, 11, 4, PAL.yellow);
-    g.rect(1, 6, 11, 1, PAL.yellowShadow);
-  },
-  // 줄넘기: 손잡이 둘과 아래로 처진 줄
-  G28: (g) => {
-    for (let x = 3; x <= 12; x++) {
-      const y = Math.round(4 + 10 * Math.sin((Math.PI * (x - 3)) / 9));
-      g.set(x, Math.min(14, y), PAL.text);
-    }
-    g.rect(1, 2, 2, 5, PAL.red);
-    g.rect(13, 2, 2, 5, PAL.red);
-  },
   // 회전판과 레이저
   G30: (g) => {
     g.ellipse(8, 8, 7, 7, PAL.bgMid);
@@ -139,13 +113,6 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(0, 9, 2, 1, PAL.yellow);
     g.rect(13, 12, 2, 1, PAL.blue);
   },
-  // 세로 신호등(초록불)
-  G09: (g) => {
-    g.rect(4, 0, 8, 16, PAL.bgMid);
-    g.ellipse(8, 3, 2.5, 2.5, PAL.redShadow);
-    g.ellipse(8, 8, 2.5, 2.5, PAL.yellowShadow);
-    g.ellipse(8, 13, 2.5, 2.5, PAL.green);
-  },
   // 구멍에서 나온 두더지
   G11: (g) => {
     g.ellipse(8, 8, 5.5, 6.5, PAL.redShadow, PAL.line);
@@ -155,24 +122,6 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(10, 4, 1, 2, PAL.line);
     g.rect(1, 13, 14, 3, PAL.greenShadow);
   },
-  // 씨름판과 두 선수
-  G13: (g) => {
-    g.ellipse(8, 8, 7.5, 7.5, PAL.text);
-    g.ellipse(8, 8, 6.5, 6.5, PAL.yellowShadow);
-    g.ellipse(5.5, 8, 2.5, 2.5, PAL.red, PAL.redShadow);
-    g.ellipse(10.5, 8, 2.5, 2.5, PAL.blue, PAL.blueShadow);
-  },
-  // 가위 모양 손
-  G20: (g) => {
-    g.rect(4, 1, 2, 5, PAL.text);
-    g.rect(10, 1, 2, 5, PAL.text);
-    g.rect(5, 5, 2, 2, PAL.text);
-    g.rect(9, 5, 2, 2, PAL.text);
-    g.rect(4, 7, 8, 6, PAL.text);
-    g.rect(5, 9, 6, 1, PAL.yellowShadow);
-    g.rect(2, 9, 2, 3, PAL.text);
-    g.rect(5, 13, 6, 3, PAL.text);
-  },
   // 네 가지 색 칸
   G21: (g) => {
     g.rect(1, 1, 7, 7, PAL.red);
@@ -180,7 +129,9 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(1, 8, 7, 7, PAL.yellow);
     g.rect(8, 8, 7, 7, PAL.green);
     g.rect(5, 5, 6, 6, PAL.line);
-    g.rect(6, 6, 4, 4, PAL.text);
+    g.rect(6, 7, 1, 3, PAL.text);
+    g.rect(9, 7, 1, 3, PAL.text);
+    g.rect(7, 9, 2, 1, PAL.text);
   },
   // 풍선 두 개
   G23: (g) => {
@@ -246,6 +197,152 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(1, 8, 3, 2, PAL.green);
     g.rect(5, 13, 6, 3, PAL.bgMid);
     g.rect(7, 8, 1, 1, PAL.redShadow);
+  },
+  // 칠한 바닥과 붓
+  G04: (g) => {
+    g.rect(0, 9, 8, 7, PAL.red);
+    g.rect(8, 9, 8, 7, PAL.blue);
+    g.rect(0, 2, 8, 7, PAL.yellow);
+    g.line(9, 7, 14, 1, PAL.yellowShadow, 2);
+    g.rect(7, 6, 3, 3, PAL.text);
+  },
+  // 물음표 폭탄
+  G06: (g) => {
+    g.ellipse(7, 10, 5.5, 5.5, PAL.bgMid, PAL.line);
+    g.line(8, 3, 11, 0, PAL.yellowShadow);
+    g.rect(12, 0, 2, 2, PAL.red);
+    g.rect(5, 7, 4, 1, PAL.yellow);
+    g.rect(8, 8, 1, 2, PAL.yellow);
+    g.rect(6, 10, 2, 1, PAL.yellow);
+    g.rect(6, 12, 2, 1, PAL.yellow);
+  },
+  // 경매 망치와 보석
+  G07: (g) => {
+    g.rect(2, 2, 8, 4, PAL.yellowShadow);
+    g.line(6, 6, 12, 12, PAL.yellowShadow, 2);
+    g.ellipse(4, 12, 3, 2.5, PAL.green, PAL.greenShadow);
+  },
+  // 말렛과 퍽
+  G12: (g) => {
+    g.ellipse(6, 9, 5, 5, PAL.red, PAL.redShadow);
+    g.ellipse(6, 9, 2, 2, PAL.text);
+    g.ellipse(13, 4, 2, 2, PAL.text);
+    g.rect(0, 15, 16, 1, PAL.blue);
+  },
+  // 흩어진 도형과 물음표
+  G16: (g) => {
+    g.ellipse(3, 3, 2, 2, PAL.red);
+    g.rect(9, 2, 4, 4, PAL.blue);
+    g.ellipse(4, 11, 2, 2, PAL.red);
+    g.rect(10, 9, 3, 1, PAL.yellow);
+    g.rect(12, 10, 1, 2, PAL.yellow);
+    g.rect(11, 12, 1, 1, PAL.yellow);
+    g.rect(11, 14, 1, 1, PAL.yellow);
+  },
+  // 네 칸 램프
+  G18: (g) => {
+    g.rect(1, 1, 6, 6, PAL.red);
+    g.rect(9, 1, 6, 6, PAL.blueShadow);
+    g.rect(1, 9, 6, 6, PAL.yellowShadow);
+    g.rect(9, 9, 6, 6, PAL.green);
+  },
+  // 삽과 보물 상자
+  G31: (g) => {
+    g.rect(1, 9, 9, 6, PAL.redShadow);
+    g.rect(1, 7, 9, 3, PAL.red);
+    g.rect(5, 9, 1, 2, PAL.yellow);
+    g.line(14, 0, 10, 8, PAL.yellowShadow);
+    g.rect(9, 8, 3, 3, PAL.bgMid);
+  },
+  // 상자 셋 중 하나가 펑
+  G32: (g) => {
+    g.rect(0, 8, 5, 6, PAL.yellow);
+    g.rect(11, 8, 5, 6, PAL.yellow);
+    g.ellipse(8, 7, 4, 4, PAL.red, PAL.redShadow);
+    g.ellipse(8, 7, 2, 2, PAL.yellow);
+  },
+  // 나눌까 가질까: 동전 둘
+  G33: (g) => {
+    g.ellipse(4.5, 8, 3.5, 3.5, PAL.yellow, PAL.yellowShadow);
+    g.ellipse(11.5, 8, 3.5, 3.5, PAL.yellow, PAL.yellowShadow);
+    g.rect(7, 2, 2, 12, PAL.red);
+  },
+  // 뒤집힌 카드 둘
+  G35: (g) => {
+    g.rect(1, 2, 6, 10, PAL.blue);
+    g.rect(2, 3, 4, 8, PAL.blueShadow);
+    g.rect(9, 4, 6, 10, PAL.text);
+    g.ellipse(12, 9, 2, 2, PAL.red);
+  },
+  // 물건 사이 빈칸 물음표
+  G36: (g) => {
+    g.rect(1, 3, 4, 4, PAL.green);
+    g.rect(11, 3, 4, 4, PAL.red);
+    g.rect(1, 10, 4, 4, PAL.blue);
+    g.rect(10, 9, 4, 1, PAL.yellow);
+    g.rect(13, 10, 1, 2, PAL.yellow);
+    g.rect(11, 12, 2, 1, PAL.yellow);
+    g.rect(11, 14, 1, 1, PAL.yellow);
+  },
+  // 미로
+  G37: (g) => {
+    g.rect(0, 0, 16, 1, PAL.text);
+    g.rect(0, 15, 16, 1, PAL.text);
+    g.rect(0, 0, 1, 16, PAL.text);
+    g.rect(15, 0, 1, 16, PAL.text);
+    g.rect(4, 0, 1, 10, PAL.text);
+    g.rect(8, 5, 1, 11, PAL.text);
+    g.rect(12, 0, 1, 10, PAL.text);
+    g.rect(2, 12, 2, 2, PAL.yellow);
+  },
+  // 쟁반 위 구슬
+  G39: (g) => {
+    g.ellipse(8, 11, 7.5, 3, PAL.bgMid, PAL.line);
+    g.ellipse(9, 7, 2.5, 2.5, PAL.text);
+  },
+  // 마이크
+  G40: (g) => {
+    g.ellipse(8, 5, 4, 4.5, PAL.bgMid, PAL.line);
+    g.rect(7, 9, 2, 5, PAL.text);
+    g.rect(4, 14, 8, 1, PAL.text);
+    g.line(13, 2, 15, 0, PAL.yellow);
+    g.line(13, 6, 15, 6, PAL.yellow);
+  },
+  // 길이가 다른 막대 넷(순서)
+  G41: (g) => {
+    g.rect(1, 12, 3, 3, PAL.red);
+    g.rect(5, 9, 3, 6, PAL.blue);
+    g.rect(9, 6, 3, 9, PAL.yellow);
+    g.rect(13, 2, 3, 13, PAL.green);
+  },
+  // 어둠 속 빛과 보석
+  G45: (g) => {
+    g.rect(0, 0, 16, 16, PAL.line);
+    g.ellipse(8, 8, 6, 6, PAL.bgMid);
+    g.rect(7, 5, 2, 6, PAL.yellow);
+    g.rect(5, 7, 6, 2, PAL.yellow);
+  },
+  // 원 위의 손가락들
+  G46: (g) => {
+    g.ellipse(3.5, 4, 3, 3, PAL.red);
+    g.ellipse(12, 4, 3, 3, PAL.blue);
+    g.ellipse(4, 12, 3, 3, PAL.green);
+    g.ellipse(12, 12, 3, 3, PAL.yellow);
+    g.rect(11, 11, 2, 5, PAL.text);
+  },
+  // 잘린 판과 공
+  G49: (g) => {
+    g.rect(1, 1, 14, 14, PAL.bgMid);
+    g.rect(1, 1, 6, 14, PAL.green);
+    g.rect(7, 0, 1, 16, PAL.yellow);
+    g.ellipse(11, 8, 2, 2, PAL.text);
+  },
+  // 꼬리 달린 우주선
+  G58: (g) => {
+    g.ellipse(12, 4, 3, 3, PAL.blue, PAL.blueShadow);
+    g.rect(8, 7, 2, 2, PAL.text);
+    g.rect(5, 10, 2, 2, PAL.text);
+    g.rect(2, 13, 2, 2, PAL.text);
   },
 };
 

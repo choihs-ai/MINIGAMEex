@@ -8,20 +8,20 @@ import { regionOf } from './G54';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G12 골 지키기(G48 선 긋기 차단 흡수): 자기 구역을 손가락으로 누르고 끌면 말렛이 따라온다.
-// 퍽(2개)이 화면을 튕겨 다니고, 자기 골(2인은 자기 쪽 가장자리 가운데, 3~4인은 자기 모서리)에 들어가면 체력 -1.
+// 퍽(3개)이 화면을 튕겨 다니고, 자기 골(2인은 자기 쪽 가장자리 가운데, 3~4인은 자기 모서리)에 들어가면 체력 -1.
 // 체력 3이 다 닳으면 탈락(그 골은 벽이 된다). 탈락 역순, 끝까지 남으면 남은 체력 순.
 
 export const DURATION = 30;
 export const HP = 3;
 export const MALLET_R = 9;
 export const PUCK_R = 4;
-const PUCKS = 2;
+const PUCKS = 3;
 const SPEED_START = 75;
-const SPEED_END = 150;
+const SPEED_END = 175;
 /** 모서리 골: 가로 변으로 이만큼, 세로 변으로 이만큼 */
-const CORNER_GOAL_X = 56;
-const CORNER_GOAL_Y = 40;
-const GOAL_HALF = 50;
+const CORNER_GOAL_X = 64;
+const CORNER_GOAL_Y = 46;
+const GOAL_HALF = 60;
 
 export interface Keeper {
   seat: Seat;

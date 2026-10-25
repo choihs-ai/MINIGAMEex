@@ -5,7 +5,7 @@
 
 - 플레이: https://choihs-ai.github.io/MINIGAMEex/
 - 개발 지시서: [`docs/CLAUDE_CODE_프롬프트.md`](./docs/CLAUDE_CODE_프롬프트.md)
-- 미니게임 세부표: [`docs/games.json`](./docs/games.json), `docs/4인용게임EX_미니게임_세부표.xlsx`
+- 미니게임 세부표: [`docs/games.json`](./docs/games.json) (통폐합 후 39종, 최신), 파티 전용 7종은 [`docs/party-games.json`](./docs/party-games.json)로 분리. `docs/4인용게임EX_미니게임_세부표.xlsx`는 통폐합 전 원본
 - 아트 레퍼런스: [`docs/art/`](./docs/art)
 
 ## 개발
@@ -17,7 +17,7 @@ npm test           # 로직 테스트 (Vitest)
 npm run build      # 타입 검사 + 빌드 → dist/
 ```
 
-개발용 바로가기(주소 뒤에 붙임): `#G01` `#G19` `#G22`(1인+AI), `#G01-4`처럼 `-인원`(2~4), `#tournament2`~`#tournament4`(토너먼트 설정), `#render` `#chars` `#input1`~`#input4` `#result1`~`#result4`
+개발용 바로가기(주소 뒤에 붙임): `#G01` 처럼 게임 코드(1인+AI), `#G01-4`처럼 `-인원`(2~4), `#tournament2`~`#tournament4`(토너먼트 설정), `#render` `#chars` `#input1`~`#input4` `#result1`~`#result4`
 
 `main` 브랜치에 푸시하면 GitHub Actions가 테스트·빌드 후 GitHub Pages에 배포한다.
 

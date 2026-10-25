@@ -210,8 +210,8 @@ class SliceAI implements AiController {
     controls: PlayerControls,
   ) {
     this.hand = new AiHand(controls);
-    this.margin = byDifficulty(player.difficulty, { easy: 8, normal: 16, hard: 24 });
-    this.interval = byDifficulty(player.difficulty, { easy: [1.2, 2.2], normal: [0.8, 1.5], hard: [0.5, 1.0] });
+    this.margin = byDifficulty(player.difficulty, { easy: 6, normal: 10, hard: 16 });
+    this.interval = byDifficulty(player.difficulty, { easy: [1.8, 3.0], normal: [1.3, 2.3], hard: [0.9, 1.6] });
   }
 
   think(dt: number): void {

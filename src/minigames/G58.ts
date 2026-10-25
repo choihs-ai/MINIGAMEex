@@ -8,7 +8,7 @@ import { anchorOf, drawMarker, drawScoreTag, drawTimer } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G58 우주 쓰레기 청소: 가상 조이스틱으로 우주선을 몰아 떠다니는 쓰레기에 닿으면 그물(꼬리)에 줄줄이 달린다.
-// 자기 기지(자기 쪽 모서리 원)에 들어가면 달린 쓰레기를 모두 챙긴다. 남의 그물에 부딪히면 그 그물이 끊겨 쓰레기가 흩어진다.
+// 자기 기지(자기 쪽 모서리 원)에 들어가면 달린 쓰레기를 모두 챙긴다. 남의 그물(배 바로 뒤 첫 칸 말고)에 부딪히면 거기서부터 끊겨 쓰레기가 흩어진다.
 // 챙긴 개수 순.
 
 export const DURATION = 25;
@@ -79,7 +79,7 @@ export class SpaceSweep implements MiniGame {
     const rng = this.ctx.rng;
     const a = rng.next() * Math.PI * 2;
     const v = 6 + rng.next() * 10;
-    return { x: x ?? 100 + rng.next() * 120, y: y ?? 50 + rng.next() * 80, vx: Math.cos(a) * v, vy: Math.sin(a) * v };
+    return { x: x ?? 30 + rng.next() * 260, y: y ?? 20 + rng.next() * 140, vx: Math.cos(a) * v, vy: Math.sin(a) * v };
   }
 
   update(dt: number): void {
@@ -128,7 +128,8 @@ export class SpaceSweep implements MiniGame {
       // 남의 그물 끊기
       for (const o of this.ships) {
         if (o === s) continue;
-        const k = o.tail.findIndex((seg) => Math.hypot(seg.x - s.x, seg.y - s.y) <= CUT_R);
+        // 배 바로 뒤 첫 칸은 못 끊는다(스치기만 해도 끊기지 않게)
+        const k = o.tail.findIndex((seg, i) => i > 0 && Math.hypot(seg.x - s.x, seg.y - s.y) <= CUT_R);
         if (k < 0) continue;
         for (const seg of o.tail.slice(k)) this.junk.push(this.spawnJunk(seg.x, seg.y));
         o.tail = o.tail.slice(0, k);
@@ -175,8 +176,10 @@ export class SpaceSweep implements MiniGame {
 class SweepAI implements AiController {
   private readonly hand: AiHand;
   private wait = 0;
+  private huntRoll = 1;
   private readonly interval: number;
   private readonly greed: number;
+  private readonly hunt: number;
 
   constructor(
     private readonly game: SpaceSweep,
@@ -186,6 +189,7 @@ class SweepAI implements AiController {
     this.hand = new AiHand(controls);
     this.interval = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.16, hard: 0.08 });
     this.greed = byDifficulty(player.difficulty, { easy: 2, normal: 3, hard: 4 });
+    this.hunt = byDifficulty(player.difficulty, { easy: 0, normal: 0.3, hard: 0.6 });
   }
 
   think(dt: number): void {
@@ -195,6 +199,7 @@ class SweepAI implements AiController {
     this.wait -= dt;
     if (this.wait > 0) return;
     this.wait = this.interval;
+    if (g.rng.next() < 0.05) this.huntRoll = g.rng.next();
     const me = g.ships.find((s) => s.seat === this.player.seat)!;
     let tx = me.base.x;
     let ty = me.base.y;
@@ -204,10 +209,10 @@ class SweepAI implements AiController {
         tx = near.x;
         ty = near.y;
       }
-      // 아주 가까운 남의 꼬리는 끊는다
+      // 아주 가까운 남의 긴 꼬리는 가끔 끊으러 간다
       for (const o of g.ships) {
-        if (o === me || o.tail.length < 2) continue;
-        const seg = o.tail[0];
+        if (o === me || o.tail.length < 3 || this.huntRoll > this.hunt) continue;
+        const seg = o.tail[o.tail.length - 1];
         if (Math.hypot(seg.x - me.x, seg.y - me.y) < 30) {
           tx = seg.x;
           ty = seg.y;
