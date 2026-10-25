@@ -7,12 +7,12 @@ import { DIGIT_BIG, DIGIT_SMALL, drawNumber, numberWidth } from '../ui/bigText';
 import { AiHand, byDifficulty, jitter } from './ai';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
-// G52 멈춰 시계: 정확히 10.00초에 누른다. 3초가 지나면 숫자가 사라진다. 오차 합이 작은 순.
+// G52 멈춰 시계: 정확히 10.00초에 누른다. 1.5초가 지나면 숫자가 사라진다. 오차 합이 작은 순.
 // 세부표는 3라운드지만 판 길이(20~30초)에 맞춰 2라운드.
 
 export const ROUNDS = 2;
 export const TARGET = 10;
-export const HIDE_AFTER = 3;
+export const HIDE_AFTER = 1.5;
 /** 이때까지 안 누르면 이 시각에 누른 것으로 친다(오차 4초) */
 export const TIMEOUT = 14;
 const REVEAL = 2.4;

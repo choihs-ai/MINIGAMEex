@@ -17,16 +17,16 @@ export const HACK_X = 40;
 export const HACK_Y = 90;
 export const HOUSE_X = 246;
 export const HOUSE_Y = 90;
-export const HOUSE_R = 26;
+export const HOUSE_R = 20;
 /** 이 선을 넘지 못하고 멈춘 돌은 빠진다 */
 export const HOG_X = 170;
 export const STONE_R = 5;
-export const MAX_DRAG = 44;
-export const POWER = 4.6;
+export const MAX_DRAG = 40;
+export const POWER = 5.6;
 const DECEL = 55;
 const RESTITUTION = 0.85;
 export const MIN_DRAG = 6;
-export const TURN_TIME = 7;
+export const TURN_TIME = 6;
 const GRAB_R = 22;
 
 export type Phase = 'aim' | 'slide' | 'over';
@@ -188,8 +188,8 @@ export class IceCurling implements MiniGame {
     r.rect(SHEET.x - 2, SHEET.y - 2, SHEET.w + 4, SHEET.h + 4, PAL.line);
     r.rect(SHEET.x, SHEET.y, SHEET.w, SHEET.h, PAL.text);
     r.disc(HOUSE_X, HOUSE_Y, HOUSE_R, PAL.blue);
-    r.disc(HOUSE_X, HOUSE_Y, HOUSE_R - 8, PAL.text);
-    r.disc(HOUSE_X, HOUSE_Y, HOUSE_R - 16, PAL.red);
+    r.disc(HOUSE_X, HOUSE_Y, HOUSE_R - 7, PAL.text);
+    r.disc(HOUSE_X, HOUSE_Y, HOUSE_R - 13, PAL.red);
     r.disc(HOUSE_X, HOUSE_Y, 3, PAL.text);
     r.rect(SHEET.x, HOUSE_Y, SHEET.w, 1, PAL.bgMid);
     for (let y = SHEET.y; y < SHEET.y + SHEET.h; y += 4) r.rect(HOG_X, y, 1, 2, PAL.redShadow);

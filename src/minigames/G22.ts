@@ -15,15 +15,15 @@ export const DURATION = 20;
 /** 경기장(모서리 버튼을 피한 가운데 띠) */
 export const FIELD_X = 80;
 export const FIELD_W = 160;
-export const BASKET_W = 24;
+export const BASKET_W = 18;
 const BASKET_H = 7;
 export const BASKET_SPEED = 110;
 /** 바구니 윗면(별을 받는 선) */
 export const CATCH_Y = 150;
-const STAR_SPEED_START = 60;
-const STAR_SPEED_END = 95;
+const STAR_SPEED_START = 85;
+const STAR_SPEED_END = 150;
 /** 참가자 1명당 초당 별 수 */
-const STARS_PER_PLAYER = 0.9;
+const STARS_PER_PLAYER = 1.1;
 
 export interface Basket {
   seat: Seat;

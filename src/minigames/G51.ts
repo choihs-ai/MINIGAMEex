@@ -12,13 +12,13 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const ROUNDS = 5;
 /** 한 칸(8분음표) 길이 */
-export const STEP = 0.25;
+export const STEP = 0.22;
 export const STEPS = 8;
 export const LISTEN = STEP * STEPS;
 export const CUE = 0.6;
 export const PLAY = STEP * STEPS;
 const RESULT = 0.8;
-export const WINDOW = 0.11;
+export const WINDOW = 0.08;
 /** 박자가 없는 때 친 한 번당 감점 */
 export const EXTRA_PENALTY = 2;
 export const ROUND_TIME = LISTEN + CUE + PLAY + RESULT;
@@ -35,11 +35,11 @@ export interface Drummer {
   lastExtraAt: number;
 }
 
-/** 라운드별 리듬: 첫 칸은 항상, 나머지는 무작위. 라운드가 갈수록 많아진다(3~6개). */
+/** 라운드별 리듬: 첫 칸은 항상, 나머지는 무작위. 라운드가 갈수록 많아진다(3~7개). */
 export function makePatterns(rng: { next(): number }): number[][] {
   const out: number[][] = [];
   for (let r = 0; r < ROUNDS; r++) {
-    const count = Math.min(6, 3 + r);
+    const count = Math.min(7, 3 + r);
     const steps = new Set<number>([0]);
     while (steps.size < count) steps.add(1 + Math.floor(rng.next() * (STEPS - 1)));
     out.push([...steps].sort((a, b) => a - b));

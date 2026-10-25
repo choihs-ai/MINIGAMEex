@@ -22,9 +22,9 @@ const ROPE_R = GROUND_Y - PIVOT_Y;
 const LEFT_X = 70;
 const RIGHT_X = 250;
 
-/** 줄 한 바퀴 시간: 1.6초에서 시작해 점점 빨라진다(끝날 무렵 0.65초) */
+/** 줄 한 바퀴 시간: 1.4초에서 시작해 빠르게 줄어든다(23초쯤 점프 시간과 거의 같아져 버티기 어렵다) */
 export function ropePeriod(t: number): number {
-  return Math.max(0.65, 1.6 - t * 0.033);
+  return Math.max(0.42, 1.4 - t * 0.042);
 }
 
 export interface Jumper {

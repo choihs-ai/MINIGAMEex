@@ -10,7 +10,7 @@ import { defineGame } from './types';
 export const DURATION = 25;
 export const COLOR_NAMES = ['빨강', '파랑', '노랑', '초록'] as const;
 /** 글자 내용과 글씨 색이 같은 문제의 비율(함정이 아닌 문제도 섞는다) */
-const SAME_CHANCE = 0.2;
+const SAME_CHANCE = 0.15;
 
 export class ColorTrap extends QuizGame {
   readonly code = 'G21';

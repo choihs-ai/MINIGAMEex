@@ -4,7 +4,7 @@ import { BTN_LEFT, BTN_RIGHT } from '../src/input/controls';
 import type { Seat } from '../src/input/seats';
 import { ARENA_R, ARENA_X, ARENA_Y, DURATION as G01_DURATION, G01, SAFE_TIME, type SpinningTopBattle } from '../src/minigames/G01';
 import { G19, ROUNDS, type QuickDraw } from '../src/minigames/G19';
-import { BASKET_SPEED, CATCH_Y, DURATION as G22_DURATION, FIELD_W, FIELD_X, G22, type StarCatch } from '../src/minigames/G22';
+import { BASKET_SPEED, BASKET_W, CATCH_Y, DURATION as G22_DURATION, FIELD_W, FIELD_X, G22, type StarCatch } from '../src/minigames/G22';
 import { GAMES, READY_GAMES } from '../src/minigames/registry';
 import { expectPartition, harness, runToEnd } from './helpers';
 
@@ -179,7 +179,7 @@ describe('G22 별 받기', () => {
     const h = harness<StarCatch>(G22, [0, 1]);
     h.controls.get(0)!.press(BTN_LEFT);
     h.step(300);
-    expect(h.game.baskets[0].x).toBe(FIELD_X + 12);
+    expect(h.game.baskets[0].x).toBe(FIELD_X + BASKET_W / 2);
   });
 
   it('받는 선을 지나는 별은 가장 가까운 바구니가 받는다(옆 사람 별 가로채기)', () => {

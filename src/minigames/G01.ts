@@ -4,7 +4,7 @@ import { rankByElimination } from '../core/ranking';
 import { PAL } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { AiHand, byDifficulty } from './ai';
-import { drawMarker, drawTimer } from './common';
+import { drawMarker, drawRing, drawTimer } from './common';
 import { homeDir } from './players';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
@@ -13,7 +13,11 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const ARENA_X = 160;
 export const ARENA_Y = 90;
+/** 처음 경기장 반지름. SHRINK_START부터 줄어들어 SHRINK_END에 ARENA_MIN이 된다(끝까지 버티기 어렵게). */
 export const ARENA_R = 74;
+export const ARENA_MIN = 38;
+export const SHRINK_START = 8;
+export const SHRINK_END = 26;
 export const TOP_R = 7;
 export const DURATION = 30;
 /** 처음 몇 초는 가장자리에 벽이 있어 떨어지지 않는다(실패해도 손해 적게) */
@@ -101,6 +105,12 @@ export class SpinningTopBattle implements MiniGame {
 
   getRanking(): Seat[][] {
     return this.ranking;
+  }
+
+  /** 지금 경기장 반지름 */
+  arenaR(t = this.t): number {
+    const k = Math.min(1, Math.max(0, (t - SHRINK_START) / (SHRINK_END - SHRINK_START)));
+    return ARENA_R + (ARENA_MIN - ARENA_R) * k;
   }
 
   canPress(seat: Seat): boolean {
@@ -196,7 +206,7 @@ export class SpinningTopBattle implements MiniGame {
     const dist = Math.hypot(dx, dy);
     if (this.t < SAFE_TIME) {
       // 보호 시간: 가장자리 벽에 튕긴다
-      const limit = ARENA_R - TOP_R;
+      const limit = this.arenaR() - TOP_R;
       if (dist > limit) {
         const nx = dx / dist;
         const ny = dy / dist;
@@ -210,7 +220,7 @@ export class SpinningTopBattle implements MiniGame {
       }
       return;
     }
-    if (dist > ARENA_R) {
+    if (dist > this.arenaR()) {
       top.alive = false;
       top.outAt = this.t;
       top.dashing = false;
@@ -230,9 +240,13 @@ export class SpinningTopBattle implements MiniGame {
     // 경기장: 보호 시간에는 가장자리가 노랗게(벽) 깜빡인다
     const safe = this.t < SAFE_TIME && !this.done;
     const edge = safe && Math.floor(this.t * 4) % 2 === 0 ? PAL.yellow : PAL.text;
-    r.disc(ARENA_X, ARENA_Y, ARENA_R + 3, PAL.line);
-    r.disc(ARENA_X, ARENA_Y, ARENA_R + 1, edge);
-    r.disc(ARENA_X, ARENA_Y, ARENA_R - 1, PAL.bgMid);
+    // 줄어든 바깥은 낭떠러지(어두운 고리로 남긴다)
+    const radius = Math.round(this.arenaR());
+    if (radius < ARENA_R) drawRing(r, ARENA_X, ARENA_Y, ARENA_R, PAL.bgMid);
+    const shrinking = this.t >= SHRINK_START && this.t < SHRINK_END && !this.done;
+    r.disc(ARENA_X, ARENA_Y, radius + 3, PAL.line);
+    r.disc(ARENA_X, ARENA_Y, radius + 1, shrinking && Math.floor(this.t * 3) % 2 === 0 ? PAL.red : edge);
+    r.disc(ARENA_X, ARENA_Y, radius - 1, PAL.bgMid);
     r.rect(ARENA_X - 2, ARENA_Y, 5, 1, PAL.bgDark);
     r.rect(ARENA_X, ARENA_Y - 2, 1, 5, PAL.bgDark);
 
@@ -315,7 +329,8 @@ class TopAI implements AiController {
     let tx = ARENA_X;
     let ty = ARENA_Y;
     let chasing = false;
-    if (fromCenter < ARENA_R * this.edgeFrac) {
+    const arena = this.game.arenaR();
+    if (fromCenter < arena * this.edgeFrac) {
       const others = this.game.tops.filter((t) => t.alive && t !== me);
       const target = others.sort((a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y))[0];
       if (target) {
@@ -329,7 +344,7 @@ class TopAI implements AiController {
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     const dist = Math.hypot(tx - me.x, ty - me.y);
 
-    if (chasing && Math.abs(diff) < 0.3 && dist < 70 && me.energy > 0.6 && fromCenter < ARENA_R * 0.6) {
+    if (chasing && Math.abs(diff) < 0.3 && dist < 70 && me.energy > 0.6 && fromCenter < arena * 0.6) {
       // 누르는 순간 방향이 바뀌지만 돌진하는 동안은 직진하므로 그대로 꾹 누른다
       this.hand.tap(0, 0, 0.3 + this.game.rng.next() * 0.2);
     } else if (Math.sign(diff) !== me.turn && Math.abs(diff) > 0.35) {

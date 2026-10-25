@@ -13,13 +13,13 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const DURATION = 30;
 /** 박자 간격(초) */
-export const BEAT = 0.6;
+export const BEAT = 0.5;
 /** 박자 앞뒤로 이만큼 안이면 성공 */
-export const WINDOW = 0.13;
+export const WINDOW = 0.09;
 /** 처음 몇 초는 빗나가도 안 끌려간다 */
-export const GRACE = 3;
+export const GRACE = 2;
 export const PULL = 3;
-export const SLIP = 2;
+export const SLIP = 3;
 const CX = 160;
 const CY = 90;
 const REACH_X = 104;

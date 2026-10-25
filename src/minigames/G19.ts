@@ -13,8 +13,11 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 // 3라운드, 라운드마다 가장 빠른 1명 1점(같은 틱이면 공동). 동점은 평균 반응 시간이 빠른 쪽.
 
 export const ROUNDS = 3;
-const WAIT_MIN = 1.6;
-const WAIT_MAX = 3.8;
+const WAIT_MIN = 1.2;
+const WAIT_MAX = 4.5;
+/** 신호처럼 화면만 번쩍하는 속임수(느낌표 없음). 이때 누르면 실격 */
+const FAKE_CHANCE = 0.5;
+export const FAKE_TIME = 0.18;
 /** 신호 뒤 아무도 안 누르면 이 시간 뒤 라운드 종료 */
 export const SIGNAL_TIMEOUT = 2;
 /** 승자 결정 후 다른 사람 반응을 기록하며 결과를 보여주는 시간 */
@@ -43,6 +46,8 @@ export class QuickDraw implements MiniGame {
   /** 신호가 뜬 뒤 지난 시간(신호 전에는 null) */
   sinceSignal: number | null = null;
   waitTime = 0;
+  /** 이번 라운드 속임 번쩍임 시각(대기 시작 기준, 없으면 null) */
+  fakeAt: number | null = null;
   readonly wins = new Map<Seat, number>();
   /** 라운드별 반응 시간 */
   readonly reactions = new Map<Seat, number[]>();
@@ -89,6 +94,11 @@ export class QuickDraw implements MiniGame {
     return Object.fromEntries(this.wins) as Partial<Record<Seat, number>>;
   }
 
+  /** 지금 속임 번쩍임 중인가 */
+  faking(): boolean {
+    return this.phase === 'wait' && this.fakeAt !== null && this.phaseT >= this.fakeAt && this.phaseT < this.fakeAt + FAKE_TIME;
+  }
+
   averageReaction(seat: Seat): number {
     const list = this.reactions.get(seat) ?? [];
     return list.length ? list.reduce((a, b) => a + b, 0) / list.length : PENALTY_TIME;
@@ -113,6 +123,8 @@ export class QuickDraw implements MiniGame {
     this.phaseT = 0;
     this.sinceSignal = null;
     this.waitTime = WAIT_MIN + this.ctx.rng.next() * (WAIT_MAX - WAIT_MIN);
+    this.fakeAt =
+      this.waitTime > 1.4 && this.ctx.rng.next() < FAKE_CHANCE ? 0.5 + this.ctx.rng.next() * (this.waitTime - 1.1) : null;
     this.fouled.clear();
     this.warned.clear();
     this.reacted.clear();
@@ -125,6 +137,7 @@ export class QuickDraw implements MiniGame {
     this.phaseT += dt;
     if (this.sinceSignal !== null) this.sinceSignal += dt;
 
+    if (this.phase === 'wait' && this.fakeAt !== null && this.phaseT >= this.fakeAt && this.phaseT - dt < this.fakeAt) this.ctx.sfx.beep();
     const winnersThisTick: Seat[] = [];
     for (const p of this.ctx.players) {
       if (!this.ctx.controls.get(p.seat)!.justPressed()) continue;
@@ -193,7 +206,7 @@ export class QuickDraw implements MiniGame {
 
   render(r: Renderer): void {
     // 신호가 떠 있는 동안 화면 전체가 밝아진다(어느 방향에서 봐도 바로 알 수 있게)
-    r.clear(this.phase === 'signal' ? PAL.bgMid : PAL.bgDark);
+    r.clear(this.phase === 'signal' || this.faking() ? PAL.bgMid : PAL.bgDark);
     r.rect(0, 91, 320, 1, PAL.bgMid);
 
     for (const p of this.ctx.players) {
@@ -300,6 +313,8 @@ class QuickDrawAI implements AiController {
   private sawSignal = false;
   private readonly reaction: readonly [number, number];
   private readonly foulChance: number;
+  private readonly fooled: number;
+  private sawFake = false;
 
   constructor(
     private readonly game: QuickDraw,
@@ -309,6 +324,7 @@ class QuickDrawAI implements AiController {
     this.hand = new AiHand(controls);
     this.reaction = byDifficulty(player.difficulty, { easy: [0.42, 0.62], normal: [0.28, 0.42], hard: [0.2, 0.28] });
     this.foulChance = byDifficulty(player.difficulty, { easy: 0.1, normal: 0.05, hard: 0.02 });
+    this.fooled = byDifficulty(player.difficulty, { easy: 0.35, normal: 0.18, hard: 0.07 });
   }
 
   think(dt: number): void {
@@ -318,8 +334,15 @@ class QuickDrawAI implements AiController {
     if (this.game.round !== this.round) {
       this.round = this.game.round;
       this.sawSignal = false;
+      this.sawFake = false;
       this.hand.reset();
       if (this.round > 0 && rng.next() < this.foulChance) this.hand.tap(0, 0.5 + rng.next() * 1.5);
+    }
+    if (this.game.faking() && !this.sawFake) {
+      // 속임 번쩍임에 속아 누른다
+      this.sawFake = true;
+      const [lo, hi] = this.reaction;
+      if (rng.next() < this.fooled) this.hand.tap(0, lo + rng.next() * (hi - lo));
     }
     if (this.game.phase === 'signal' && !this.sawSignal) {
       this.sawSignal = true;

@@ -14,13 +14,13 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 export const DURATION = 25;
 export const ITEM_KINDS = 8;
 export const SHELF_COLS = 3;
-export const SHELF_ROWS = 2;
-const CELL = 22;
-const GAP = 3;
+export const SHELF_ROWS = 3;
+const CELL = 18;
+const GAP = 2;
 const SHELF_W = SHELF_COLS * CELL + (SHELF_COLS - 1) * GAP;
 const SHELF_H = SHELF_ROWS * CELL + (SHELF_ROWS - 1) * GAP;
-export const WRONG_LOCK = 0.6;
-const NEXT_GAP = 0.5;
+export const WRONG_LOCK = 1.0;
+const NEXT_GAP = 0.3;
 
 /**
  * 이 플레이어 진열대가 놓이는 구역. 2인 이상은 자기 터치 구역,
@@ -95,7 +95,7 @@ export class ConvenienceStore implements MiniGame {
     const col = i % SHELF_COLS;
     const row = Math.floor(i / SHELF_COLS);
     const lx = Math.round((region.w - SHELF_W) / 2) + col * (CELL + GAP);
-    const ly = Math.round((region.h - SHELF_H) / 2) + 4 + row * (CELL + GAP);
+    const ly = Math.round((region.h - SHELF_H) / 2) - 2 + row * (CELL + GAP);
     if (!shelf.flipped) return { x: region.x + lx, y: region.y + ly, w: CELL, h: CELL };
     return { x: region.x + region.w - lx - CELL, y: region.y + region.h - ly - CELL, w: CELL, h: CELL };
   }
@@ -107,13 +107,10 @@ export class ConvenienceStore implements MiniGame {
     this.wanted = wanted;
     this.customer++;
     for (const s of this.shelves) {
-      // 원하는 물건 + 다른 물건 다섯 개를 섞어 놓는다
+      // 원하는 물건 하나 + 다른 물건들(겹칠 수 있음)을 섞어 놓는다
       const others = [...Array(ITEM_KINDS).keys()].filter((k) => k !== wanted);
-      for (let i = others.length - 1; i > 0; i--) {
-        const j = Math.floor(rng.next() * (i + 1));
-        [others[i], others[j]] = [others[j], others[i]];
-      }
-      const items = [wanted, ...others.slice(0, SHELF_COLS * SHELF_ROWS - 1)];
+      const items = [wanted];
+      while (items.length < SHELF_COLS * SHELF_ROWS) items.push(others[Math.floor(rng.next() * others.length)]);
       for (let i = items.length - 1; i > 0; i--) {
         const j = Math.floor(rng.next() * (i + 1));
         [items[i], items[j]] = [items[j], items[i]];

@@ -11,24 +11,24 @@ import { homeDir } from './players';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G24 구슬치기(차례제): 자기 차례에 내 구슬을 누른 채 뒤로 당겼다 놓으면 반대쪽으로 튕겨 나간다.
-// 상대 구슬을 판 밖으로 쳐내고, 내 구슬은 남긴다. 순위는 남은 구슬 수.
+// 상대 구슬을 판 밖으로 쳐내고, 내 구슬은 남긴다. 순위는 남은 구슬 수(같으면 가운데에 가까운 쪽).
 
 export const BOARD_X = 160;
 export const BOARD_Y = 90;
-export const BOARD_R = 70;
+export const BOARD_R = 60;
 export const MARBLE_R = 5;
 export const MARBLES_EACH = 2;
 export const MAX_DRAG = 40;
 export const POWER = 6.5;
-const DECEL = 150;
+const DECEL = 120;
 const RESTITUTION = 0.92;
 /** 이보다 짧게 당기면 쏘지 않은 것으로 본다 */
 export const MIN_DRAG = 6;
 /** 이 시간 안에 안 쏘면 차례를 넘긴다 */
-export const TURN_TIME = 7;
+export const TURN_TIME = 6;
 /** 구슬을 잡을 때 이만큼 떨어진 곳까지 그 구슬로 본다 */
 export const GRAB_R = 18;
-const START_DIST = 40;
+const START_DIST = 36;
 
 export type Phase = 'aim' | 'roll' | 'over';
 
@@ -46,6 +46,8 @@ export class Marbles implements MiniGame {
   phaseT = 0;
   /** 조준 중인 구슬(누른 채 끄는 동안) */
   aiming: Disc | null = null;
+  /** 마지막 구슬을 잃은 시각(다 잃은 사람끼리는 늦게 잃은 쪽이 위) */
+  readonly lastOut = new Map<Seat, number>();
   private ctx!: GameContext;
   private falls: Array<{ x: number; y: number; t: number; owner: Seat }> = [];
 
@@ -104,8 +106,16 @@ export class Marbles implements MiniGame {
     return Object.fromEntries(this.order.map((s) => [s, this.remaining(s)])) as Partial<Record<Seat, number>>;
   }
 
+  /** 남은 구슬 수 순. 같으면 남은 구슬이 판 가운데에 가까운(덜 위험한) 사람이 위 */
   getRanking(): Seat[][] {
-    return rankByScore(this.order.map((seat) => ({ seat, score: this.remaining(seat) })));
+    return rankByScore(
+      this.order.map((seat) => {
+        const own = this.mine(seat);
+        if (own.length === 0) return { seat, score: -100000 + Math.round((this.lastOut.get(seat) ?? 0) * 10) };
+        const spread = own.reduce((sum, d) => sum + Math.hypot(d.x - BOARD_X, d.y - BOARD_Y), 0) / own.length;
+        return { seat, score: own.length * 1000 - Math.round(spread) };
+      }),
+    );
   }
 
   mine(seat: Seat): Disc[] {
@@ -157,6 +167,7 @@ export class Marbles implements MiniGame {
     for (const d of this.discs) {
       if (d.out || Math.hypot(d.x - BOARD_X, d.y - BOARD_Y) <= BOARD_R) continue;
       d.out = true;
+      if (this.remaining(d.owner) === 0) this.lastOut.set(d.owner, this.t);
       this.falls.push({ x: d.x, y: d.y, t: this.t, owner: d.owner });
       this.ctx.sfx.lose();
       this.ctx.fx.shake(2, 0.1);

@@ -8,19 +8,19 @@ import { drawTimer } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G27 탱크 대전: 탱크는 저절로 앞으로 가고, 왼쪽 버튼을 누르고 있으면 제자리에서 돈다. 오른쪽 버튼은 발사.
-// 포탄은 벽에 튕긴다(튕긴 포탄은 내 탱크도 맞는다). 3번 맞으면 탈락. 끝까지 남으면 남은 체력이 많은 순.
+// 포탄은 벽에 튕긴다(튕긴 포탄은 내 탱크도 맞는다). 3번 맞으면 탈락. 끝까지 남으면 많이 맞힌 순.
 
 export const DURATION = 30;
 export const TANK_R = 6;
-export const DRIVE_SPEED = 36;
-export const TURN_SPEED = 3.4;
-export const BULLET_SPEED = 120;
-export const BULLET_LIFE = 2.4;
-export const MAX_BOUNCES = 3;
-export const FIRE_COOLDOWN = 0.6;
-export const MAX_BULLETS = 3;
+export const DRIVE_SPEED = 46;
+export const TURN_SPEED = 4.2;
+export const BULLET_SPEED = 165;
+export const BULLET_LIFE = 3;
+export const MAX_BOUNCES = 4;
+export const FIRE_COOLDOWN = 0.4;
+export const MAX_BULLETS = 4;
 export const HP = 3;
-const INVULN = 0.6;
+const INVULN = 0.3;
 export const ROTATE = BTN_LEFT;
 export const FIRE = BTN_RIGHT;
 
@@ -53,6 +53,8 @@ export interface Tank {
   cooldown: number;
   hitAt: number;
   rotating: boolean;
+  /** 상대를 맞힌 횟수 */
+  hits: number;
 }
 
 export interface Shell {
@@ -104,7 +106,7 @@ export class TankBattle implements MiniGame {
     const two = ctx.players.length === 2;
     this.tanks = ctx.players.map((p) => {
       const s = startOf(p.seat, two);
-      return { seat: p.seat, ...s, hp: HP, alive: true, outAt: null, cooldown: 0.5, hitAt: -9, rotating: false };
+      return { seat: p.seat, ...s, hp: HP, alive: true, outAt: null, cooldown: 0.5, hitAt: -9, rotating: false, hits: 0 };
     });
   }
 
@@ -120,19 +122,21 @@ export class TankBattle implements MiniGame {
     return this.done;
   }
 
+  /** 결과 막대 위 숫자: 상대를 맞힌 횟수 */
   getScores(): Partial<Record<Seat, number>> {
-    return Object.fromEntries(this.tanks.map((t) => [t.seat, t.hp])) as Partial<Record<Seat, number>>;
+    return Object.fromEntries(this.tanks.map((t) => [t.seat, t.hits])) as Partial<Record<Seat, number>>;
   }
 
-  /** 살아남은 사람은 남은 체력 순, 탈락한 사람은 늦게 떨어진 순 */
+  /** 살아남은 사람은 많이 맞힌 순(같으면 남은 체력 순), 탈락한 사람은 늦게 떨어진 순 */
   getRanking(): Seat[][] {
     const groups: Seat[][] = [];
-    const alive = this.tanks.filter((t) => t.alive).sort((a, b) => b.hp - a.hp || a.seat - b.seat);
+    const key = (t: Tank) => t.hits * 10 + t.hp;
+    const alive = this.tanks.filter((t) => t.alive).sort((a, b) => key(b) - key(a) || a.seat - b.seat);
     let last: number | null = null;
     for (const t of alive) {
-      if (t.hp === last) groups[groups.length - 1].push(t.seat);
+      if (key(t) === last) groups[groups.length - 1].push(t.seat);
       else groups.push([t.seat]);
-      last = t.hp;
+      last = key(t);
     }
     const out = this.tanks.filter((t) => !t.alive).sort((a, b) => b.outAt! - a.outAt! || a.seat - b.seat);
     last = null;
@@ -236,6 +240,8 @@ export class TankBattle implements MiniGame {
       if (this.t - tank.hitAt < INVULN) return true;
       tank.hp--;
       tank.hitAt = this.t;
+      const shooter = this.tanks.find((t) => t.seat === s.owner);
+      if (shooter && shooter !== tank) shooter.hits++;
       this.ctx.sfx.hit();
       this.ctx.fx.shake(2, 0.12);
       const p = this.ctx.players.find((pl) => pl.seat === tank.seat)!;

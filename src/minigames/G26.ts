@@ -15,9 +15,9 @@ export const COLS = 80;
 export const ROWS = 45;
 export const DURATION = 30;
 /** 한 칸 가는 데 걸리는 시간: 처음엔 느리게 시작해 점점 빨라진다 */
-export const STEP_SLOW = 0.11;
-export const STEP_FAST = 0.07;
-const RAMP_TIME = 10;
+export const STEP_SLOW = 0.09;
+export const STEP_FAST = 0.055;
+const RAMP_TIME = 12;
 /** 모서리 버튼 자리는 막아 둔다(칸 단위) */
 export const CORNER_COLS = 22;
 export const CORNER_ROWS = 11;

@@ -20,7 +20,7 @@ const CX = 160;
 const CY = 90;
 const PLATFORM_R = 72;
 const RING_R = 48;
-const WARN = 0.45;
+const WARN = 0.35;
 
 export interface Hopper {
   seat: Seat;
@@ -63,7 +63,7 @@ export class LaserHop implements MiniGame {
       }
     });
     this.beam = best;
-    this.nextFlip = 5 + ctx.rng.next() * 2;
+    this.nextFlip = 4 + ctx.rng.next() * 1.5;
   }
 
   get rng() {
@@ -79,7 +79,7 @@ export class LaserHop implements MiniGame {
   }
 
   omega(t = this.t): number {
-    return 2.2 + 0.09 * t;
+    return 2.6 + 0.16 * t;
   }
 
   height(h: Hopper): number {
@@ -122,7 +122,7 @@ export class LaserHop implements MiniGame {
     }
     if (this.t >= this.nextFlip) {
       this.dir = this.dir === 1 ? -1 : 1;
-      this.nextFlip += 3 + this.ctx.rng.next() * 2;
+      this.nextFlip += 2.5 + this.ctx.rng.next() * 1.5;
       this.ctx.sfx.signal();
     }
     const before = this.beam;

@@ -13,11 +13,11 @@ import type { AiController, GameContext, MiniGame, PlayerInfo } from './types';
 
 export type QuizPhase = 'gap' | 'ask' | 'reveal';
 
-const GAP_MIN = 0.35;
-const GAP_MAX = 0.8;
+const GAP_MIN = 0.25;
+const GAP_MAX = 0.6;
 /** 아무도 못 맞히면 이 시간 뒤 다음 문제 */
-export const ASK_TIMEOUT = 2.6;
-const REVEAL_TIME = 0.55;
+export const ASK_TIMEOUT = 1.6;
+const REVEAL_TIME = 0.4;
 
 export abstract class QuizGame implements MiniGame {
   abstract readonly code: string;

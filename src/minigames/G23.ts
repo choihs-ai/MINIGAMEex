@@ -13,13 +13,13 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const DURATION = 25;
 /** 참가자 1명당 초당 풍선 수 */
-const BALLOONS_PER_PLAYER = 0.75;
-export const LIFETIME = 2.6;
+const BALLOONS_PER_PLAYER = 1.0;
+export const LIFETIME = 1.7;
 const INFLATE = 0.2;
-const RISE = 9;
+const RISE = 16;
 export const BALLOON_R = 7;
 /** 탭 판정은 그림보다 넉넉하게 */
-export const HIT_R = BALLOON_R + 4;
+export const HIT_R = BALLOON_R + 3;
 /** 버튼이 없는 게임이라 모서리도 쓴다. 가장자리만 조금 비운다. */
 const MARGIN_X = 14;
 const MARGIN_TOP = 20;

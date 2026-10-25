@@ -13,15 +13,18 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 // 보통 +1, 황금 +3, 폭탄 -2(때린 사람). 빈 구멍을 때리면 0.5초 동안 못 때린다.
 
 export const DURATION = 25;
-export const LOCKOUT = 0.5;
-const EMPTY_MIN = 0.5;
-const EMPTY_MAX = 1.4;
+export const LOCKOUT = 0.8;
+const EMPTY_MIN = 0.35;
+const EMPTY_MAX = 1.1;
 const RISE_TIME = 0.12;
 const HIT_SHOW = 0.45;
+/** 빈 구멍에서 두더지가 살짝 고개만 내미는 속임(이때 치면 헛방) */
+const PEEK_CHANCE = 0.4;
+export const PEEK_TIME = 0.3;
 
 export type MoleKind = 'normal' | 'gold' | 'bomb';
 export const MOLE_POINTS: Readonly<Record<MoleKind, number>> = { normal: 1, gold: 3, bomb: -2 };
-const UP_TIME: Readonly<Record<MoleKind, number>> = { normal: 0.95, gold: 0.65, bomb: 1.1 };
+const UP_TIME: Readonly<Record<MoleKind, number>> = { normal: 0.6, gold: 0.4, bomb: 0.8 };
 
 export type MolePhase = 'empty' | 'up' | 'hit';
 
@@ -32,6 +35,8 @@ export class MoleGrab implements MiniGame {
   phaseT = 0;
   kind: MoleKind = 'normal';
   emptyTime = 1;
+  /** 이번 빈 구멍 동안 속임 고개 시각(없으면 null) */
+  peekAt: number | null = null;
   readonly scores = new Map<Seat, number>();
   /** 자리별 못 때리는 시간이 끝나는 시각 */
   readonly lockedUntil = new Map<Seat, number>();
@@ -77,11 +82,18 @@ export class MoleGrab implements MiniGame {
     this.phase = 'empty';
     this.phaseT = 0;
     this.emptyTime = EMPTY_MIN + this.ctx.rng.next() * (EMPTY_MAX - EMPTY_MIN);
+    this.peekAt =
+      this.emptyTime > 0.7 && this.ctx.rng.next() < PEEK_CHANCE ? 0.1 + this.ctx.rng.next() * (this.emptyTime - 0.6) : null;
+  }
+
+  /** 지금 속임 고개 중인가(빈 구멍과 같아서 치면 헛방) */
+  peeking(): boolean {
+    return this.phase === 'empty' && this.peekAt !== null && this.phaseT >= this.peekAt && this.phaseT < this.peekAt + PEEK_TIME;
   }
 
   private popUp(): void {
     const roll = this.ctx.rng.next();
-    this.kind = roll < 0.14 ? 'gold' : roll < 0.34 ? 'bomb' : 'normal';
+    this.kind = roll < 0.12 ? 'gold' : roll < 0.4 ? 'bomb' : 'normal';
     this.phase = 'up';
     this.phaseT = 0;
     this.hitters = [];
@@ -138,9 +150,10 @@ export class MoleGrab implements MiniGame {
     // 두더지: 구멍 위로 올라온 높이만큼 보인다
     let rise = 0;
     if (this.phase === 'up') rise = Math.min(1, this.phaseT / RISE_TIME);
+    else if (this.peeking()) rise = 0.3;
     else if (this.phase === 'hit') rise = Math.max(0, 1 - this.phaseT / HIT_SHOW) * 0.6;
     if (rise > 0) {
-      const sprite = moleSprite(this.kind, this.phase === 'hit');
+      const sprite = moleSprite(this.peeking() ? 'normal' : this.kind, this.phase === 'hit');
       const visible = Math.round(sprite.height * rise);
       r.ctx.drawImage(sprite, 0, 0, sprite.width, visible, cx - sprite.width / 2, cy - visible + 1, sprite.width, visible);
     }
@@ -209,6 +222,8 @@ class MoleGrabAI implements AiController {
   private readonly reaction: readonly [number, number];
   private readonly bombDodge: number;
   private readonly rash: number;
+  private readonly fooled: number;
+  private sawPeek = false;
 
   constructor(
     private readonly game: MoleGrab,
@@ -219,6 +234,7 @@ class MoleGrabAI implements AiController {
     this.reaction = byDifficulty(player.difficulty, { easy: [0.38, 0.62], normal: [0.28, 0.46], hard: [0.21, 0.32] });
     this.bombDodge = byDifficulty(player.difficulty, { easy: 0.6, normal: 0.82, hard: 0.95 });
     this.rash = byDifficulty(player.difficulty, { easy: 0.12, normal: 0.06, hard: 0.02 });
+    this.fooled = byDifficulty(player.difficulty, { easy: 0.4, normal: 0.2, hard: 0.08 });
   }
 
   think(dt: number): void {
@@ -226,6 +242,11 @@ class MoleGrabAI implements AiController {
     const g = this.game;
     if (g.finished) return;
     const rng = g.rng;
+    if (g.peeking() && !this.sawPeek) {
+      this.sawPeek = true;
+      const [lo, hi] = this.reaction;
+      if (rng.next() < this.fooled) this.hand.tap(0, lo + rng.next() * (hi - lo));
+    } else if (!g.peeking()) this.sawPeek = false;
     if (g.phase === 'up' && !this.seenUp) {
       this.seenUp = true;
       if (g.kind === 'bomb' && rng.next() < this.bombDodge) return;

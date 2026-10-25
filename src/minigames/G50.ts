@@ -13,7 +13,7 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 export const DURATION = 30;
 export const SLAB_H = 6;
 /** 이만큼 안으로 맞추면 잘리지 않고 딱 맞는다 */
-export const PERFECT = 1.5;
+export const PERFECT = 1;
 const GROUND_Y = 172;
 const WAIT = 0.2;
 
@@ -83,12 +83,15 @@ export class BeatStack implements MiniGame {
     return Object.fromEntries(this.stacks.map((s) => [s.seat, this.height(s)])) as Partial<Record<Seat, number>>;
   }
 
+  /** 높이 순, 같은 높이면 맨 위 판이 넓게 남은 사람이 위 */
   getRanking(): Seat[][] {
-    return rankByScore(this.stacks.map((s) => ({ seat: s.seat, score: this.height(s) })));
+    return rankByScore(
+      this.stacks.map((s) => ({ seat: s.seat, score: this.height(s) * 1000 + Math.round(s.slabs[s.slabs.length - 1].w * 10) })),
+    );
   }
 
   speed(st: Stack): number {
-    return Math.min(130, 55 + 5 * this.height(st));
+    return Math.min(150, 60 + 6 * this.height(st));
   }
 
   /** 움직일 수 있는 범위(레인 안) */

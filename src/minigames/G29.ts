@@ -19,12 +19,12 @@ export const FINISH_WAIT = 4;
 export const CX = 160;
 export const CY = 90;
 /** 트랙 가운데 선(타원) */
-export const MID_RX = 110;
-export const MID_RY = 56;
+export const MID_RX = 113;
+export const MID_RY = 59;
 export const OUTER = { rx: 127, ry: 73 };
-export const INNER = { rx: 93, ry: 39 };
-export const MAX_SPEED = 80;
-export const GRASS_SPEED = 30;
+export const INNER = { rx: 99, ry: 45 };
+export const MAX_SPEED = 88;
+export const GRASS_SPEED = 20;
 const ACCEL = 90;
 export const STEER_RATE = 3.6;
 export const KART_R = 4;

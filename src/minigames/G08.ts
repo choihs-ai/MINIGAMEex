@@ -14,14 +14,17 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const DURATION = 30;
 /** 2인 협동 목표 점수 */
-export const COOP_TARGET = 35;
-export const SHIP_SPEED = 80;
+export const COOP_TARGET = 30;
+export const SHIP_SPEED = 90;
 export const BULLET_SPEED = 210;
-export const FIRE_COOLDOWN = 0.22;
+export const FIRE_COOLDOWN = 0.3;
 /** 누르고 있으면 이 간격으로 저절로 쏜다 */
 const HOLD_REPEAT = 0.3;
 const AUTO_FIRE = 0.45;
-export const STUN_TIME = 1;
+export const STUN_TIME = 1.5;
+/** 운석에 부딪히면 멈추는 시간과 깎이는 팀 점수 */
+export const CRASH_STUN = 1.2;
+export const CRASH_PENALTY = 2;
 const SHIP_MIN_Y = 18;
 const SHIP_MAX_Y = 162;
 export const LEFT_X = 58;
@@ -143,10 +146,9 @@ export class TwinShip implements MiniGame {
     return rankByScore(this.ctx.players.map((p) => ({ seat: p.seat, score: this.coop ? 0 : this.teamOf(p.seat).score })));
   }
 
-  /** 운석이 나오는 가로 범위: 대결은 두 배 사이, 협동은 배 앞쪽 전부 */
+  /** 운석이 나오는 가로 범위: 배가 다니는 줄까지(배도 운석을 피해야 한다) */
   private fieldX(): [number, number] {
-    if (!this.coop) return [96, 224];
-    return this.teams[0].side === 'left' ? [110, 290] : [30, 210];
+    return [LEFT_X - 8, RIGHT_X + 8];
   }
 
   private spawn(): void {
@@ -156,7 +158,7 @@ export class TwinShip implements MiniGame {
     const roll = rng.next();
     const ufo = roll < 0.12;
     const big = !ufo && roll < 0.32;
-    const speed = ufo ? 34 : big ? 16 + rng.next() * 8 : 22 + rng.next() * 14;
+    const speed = ufo ? 46 : big ? 22 + rng.next() * 10 : 30 + rng.next() * 20;
     this.rocks.push({
       id: this.nextId++,
       x: x0 + rng.next() * (x1 - x0),
@@ -187,6 +189,7 @@ export class TwinShip implements MiniGame {
       rock.y += rock.vy * dt;
     }
     this.rocks = this.rocks.filter((rk) => rk.y > -12 && rk.y < 192);
+    for (const team of this.teams) this.crash(team);
 
     const kept: Bullet[] = [];
     for (const b of this.bullets) {
@@ -244,6 +247,19 @@ export class TwinShip implements MiniGame {
       this.ctx.sfx.click();
     }
     return true;
+  }
+
+  /** 운석·UFO가 배에 부딪히면 그 배는 잠깐 멈추고 팀 점수가 깎인다 */
+  private crash(team: Team): void {
+    if (this.stunned(team)) return;
+    const rock = this.rocks.find((rk) => Math.abs(rk.x - team.x) <= rk.r + 7 && Math.abs(rk.y - team.y) <= rk.r + 5);
+    if (!rock) return;
+    this.rocks = this.rocks.filter((rk) => rk !== rock);
+    team.stunUntil = this.t + CRASH_STUN;
+    team.score = Math.max(0, team.score - CRASH_PENALTY);
+    this.ctx.sfx.hit();
+    this.ctx.fx.shake(3, 0.2);
+    this.ctx.fx.burst(team.x, team.y, PAL.red, 10);
   }
 
   /** 상대 배를 맞히면 잠깐 멈춘다(점수는 없음) */
@@ -389,6 +405,7 @@ class PilotAI implements AiController {
   private dir: -1 | 0 | 1 = 0;
   private readonly interval: number;
   private readonly slop: number;
+  private readonly dodge: number;
 
   constructor(
     private readonly game: TwinShip,
@@ -398,6 +415,7 @@ class PilotAI implements AiController {
     this.hand = new AiHand(controls);
     this.interval = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.17, hard: 0.08 });
     this.slop = byDifficulty(player.difficulty, { easy: 7, normal: 4, hard: 2 });
+    this.dodge = byDifficulty(player.difficulty, { easy: 0.5, normal: 0.8, hard: 0.95 });
   }
 
   think(dt: number): void {
@@ -409,6 +427,13 @@ class PilotAI implements AiController {
     this.wait = this.interval;
     const team = g.teamOf(this.player.seat);
     const ahead = (rk: Rock) => (rk.x - team.x) * team.dir > 10;
+    // 배가 다니는 줄로 오는 운석: 그 운석이 지나갈 높이 근처는 피한다
+    const threats = g.rocks.filter((rk) => Math.abs(rk.x - team.x) <= rk.r + 10);
+    const unsafe = (y: number) =>
+      threats.some((rk) => {
+        const eta = (y - rk.y) / rk.vy;
+        return eta > -0.2 && eta < 1.2 && Math.abs(y - rk.y) < 40 + rk.r;
+      });
     const best = g.rocks
       .filter(ahead)
       .map((rk) => {
@@ -416,9 +441,22 @@ class PilotAI implements AiController {
         const travel = Math.abs(y - team.y) / SHIP_SPEED;
         return { rk, y, cost: travel - rk.points * 0.25 };
       })
-      .filter((c) => c.y > 14 && c.y < 166)
+      .filter((c) => c.y > 14 && c.y < 166 && !unsafe(c.y))
       .sort((a, b) => a.cost - b.cost)[0];
-    const targetY = best ? best.y + jitter(g.rng, this.slop) : 90;
+    let targetY = best ? best.y + jitter(g.rng, this.slop) : team.y;
+    if (unsafe(team.y) && (!best || this.game.rng.next() < this.dodge)) {
+      // 지금 자리가 위험하면 가까운 안전한 높이로
+      for (let d = 12; d < 160; d += 12) {
+        if (team.y - d > 18 && !unsafe(team.y - d)) {
+          targetY = team.y - d;
+          break;
+        }
+        if (team.y + d < 162 && !unsafe(team.y + d)) {
+          targetY = team.y + d;
+          break;
+        }
+      }
+    }
     let want: -1 | 0 | 1 = 0;
     if (targetY < team.y - 3) want = -1;
     else if (targetY > team.y + 3) want = 1;

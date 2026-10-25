@@ -11,15 +11,18 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 // 입질 전에 누르면 고기가 놀라 도망가 1.3초 손해. 잡은 무게 합 순.
 
 export const DURATION = 30;
-export const BITE = 0.75;
-export const REEL_TIME = 3;
-const WAIT_MIN = 1.4;
-const WAIT_MAX = 4.2;
+export const BITE = 0.5;
+export const REEL_TIME = 2.4;
+const WAIT_MIN = 1.0;
+const WAIT_MAX = 3.8;
 /** 입질 전에 잘못 누르면 이만큼 손해(고기가 놀라 다시 기다림) */
 const SCARE = 1.3;
 const SHOW = 0.7;
 const WATER_Y = 100;
 const SMALL_CHANCE = 0.62;
+/** 입질 전에 찌가 살짝 건드려지는(속임) 확률과 길이. 이때 누르면 고기가 놀라 도망간다. */
+const NIBBLE_CHANCE = 0.55;
+export const NIBBLE_TIME = 0.3;
 
 export type AnglerState = 'wait' | 'bite' | 'reel' | 'catch' | 'escape' | 'scared';
 
@@ -36,6 +39,8 @@ export interface Angler {
   fish: Fish | null;
   taps: number;
   total: number;
+  /** 기다리는 동안 속임 입질이 시작되는 남은 시간(없으면 null) */
+  nibble: number | null;
 }
 
 /** 큰 고기를 끌어올리는 데 필요한 연타 수 */
@@ -56,11 +61,13 @@ export class FishingDuel implements MiniGame {
       seat: lane.seat,
       lane,
       state: 'wait',
-      timer: this.waitTime(),
+      timer: 0,
       fish: null,
+      nibble: null,
       taps: 0,
       total: 0,
     }));
+    for (const a of this.anglers) this.toWait(a);
   }
 
   get rng() {
@@ -75,8 +82,17 @@ export class FishingDuel implements MiniGame {
     return this.done;
   }
 
-  private waitTime(): number {
-    return WAIT_MIN + this.ctx.rng.next() * (WAIT_MAX - WAIT_MIN);
+  /** 다시 기다리기: 입질까지 시간과 속임 입질 시점을 정한다 */
+  private toWait(a: Angler): void {
+    const rng = this.ctx.rng;
+    a.state = 'wait';
+    a.timer = WAIT_MIN + rng.next() * (WAIT_MAX - WAIT_MIN);
+    a.nibble = a.timer > 1 && rng.next() < NIBBLE_CHANCE ? a.timer * (0.35 + rng.next() * 0.35) : null;
+  }
+
+  /** 지금 속임 입질 중인가 */
+  nibbling(a: Angler): boolean {
+    return a.state === 'wait' && a.nibble !== null && a.timer <= a.nibble && a.timer > a.nibble - NIBBLE_TIME;
   }
 
   private rollFish(): Fish {
@@ -106,6 +122,7 @@ export class FishingDuel implements MiniGame {
       a.timer -= dt;
       switch (a.state) {
         case 'wait':
+          if (a.nibble !== null && a.timer <= a.nibble && a.timer + dt > a.nibble) this.ctx.sfx.tap();
           if (pressed) {
             a.state = 'scared';
             a.timer = SCARE;
@@ -130,10 +147,7 @@ export class FishingDuel implements MiniGame {
           if (a.state === 'reel' && a.timer <= 0) this.escape(a);
           break;
         default:
-          if (a.timer <= 0) {
-            a.state = 'wait';
-            a.timer = this.waitTime();
-          }
+          if (a.timer <= 0) this.toWait(a);
       }
     }
     if (this.t >= DURATION) this.done = true;
@@ -189,6 +203,9 @@ export class FishingDuel implements MiniGame {
     if (a.state === 'bite') {
       floatY += 3;
       floatX += step % 2 === 0 ? -1 : 1;
+    } else if (this.nibbling(a)) {
+      // 속임 입질: 살짝만 꼼지락
+      floatY += step % 2 === 0 ? 2 : 1;
     } else if (a.state === 'reel') {
       floatY += 4;
       floatX += (step % 3) - 1;
@@ -241,6 +258,8 @@ class FishingAI implements AiController {
   private nextTap = 0;
   private readonly reaction: number;
   private readonly rate: number;
+  private readonly fooled: number;
+  private sawNibble = false;
 
   constructor(
     private readonly game: FishingDuel,
@@ -250,6 +269,7 @@ class FishingAI implements AiController {
     this.hand = new AiHand(controls);
     this.reaction = byDifficulty(player.difficulty, { easy: 0.45, normal: 0.3, hard: 0.2 });
     this.rate = byDifficulty(player.difficulty, { easy: 4, normal: 5.5, hard: 7 });
+    this.fooled = byDifficulty(player.difficulty, { easy: 0.35, normal: 0.18, hard: 0.07 });
   }
 
   think(dt: number): void {
@@ -257,8 +277,14 @@ class FishingAI implements AiController {
     if (this.game.finished) return;
     const a = this.game.anglers.find((x) => x.seat === this.player.seat)!;
     const rng = this.game.rng;
+    if (this.game.nibbling(a) && !this.sawNibble) {
+      // 속임 입질에 속아 성급하게 낚아챈다
+      this.sawNibble = true;
+      if (rng.next() < this.fooled) this.hand.tap(0, this.reaction);
+    }
     if (a.state !== this.lastState) {
       this.lastState = a.state;
+      if (a.state === 'wait') this.sawNibble = false;
       if (a.state === 'bite') this.hand.tap(0, Math.max(0.05, this.reaction + jitter(rng, this.reaction * 0.25)));
       if (a.state === 'reel') this.nextTap = 0.15;
     }

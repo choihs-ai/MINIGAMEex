@@ -13,11 +13,13 @@ export const DURATION = 30;
 export const BLOCK_W = 22;
 export const BLOCK_H = 8;
 /** 아랫블록과 이만큼(블록 폭 대비) 어긋나면 미끄러져 무너진다 */
-export const TOPPLE = 0.65;
+export const TOPPLE = 0.5;
 export const FALL_SPEED = 280;
 /** 탑 꼭대기에서 매달린 블록 아랫면까지 */
 const SWING_ABOVE = 34;
-const RESPAWN = 0.35;
+const RESPAWN = 0.25;
+/** 이만큼 안 누르고 있으면 블록이 저절로 떨어진다(가만히 버티기 금지) */
+export const AUTO_DROP = 2.5;
 const GROUND_Y = 170;
 const SCATTER_TIME = 0.8;
 
@@ -113,7 +115,7 @@ export class BlockTower implements MiniGame {
 
   /** 높이가 높을수록 빨리 흔들린다 */
   omega(t: Tower): number {
-    return Math.min(6.5, 2.6 + 0.22 * t.blocks.length);
+    return Math.min(7.5, 3 + 0.28 * t.blocks.length);
   }
 
   swingX(t: Tower, swingT: number): number {
@@ -132,7 +134,7 @@ export class BlockTower implements MiniGame {
       if (tw.state === 'swing') {
         tw.swingT += dt;
         tw.x = this.swingX(tw, tw.swingT);
-        if (c.justPressed()) {
+        if (c.justPressed() || tw.swingT >= AUTO_DROP) {
           tw.state = 'fall';
           tw.y = this.top(tw) + SWING_ABOVE;
           this.ctx.sfx.turn();

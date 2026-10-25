@@ -5,7 +5,7 @@ import { Grid } from '../render/grid';
 import { PAL, type SeatColor } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { AiHand, byDifficulty } from './ai';
-import { drawMarker, drawTimer, TIMER_X, TIMER_Y } from './common';
+import { drawMarker, drawRing, drawTimer, TIMER_X, TIMER_Y } from './common';
 import { homeDir } from './players';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
@@ -14,7 +14,11 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 export const RING_X = 160;
 export const RING_Y = 90;
+/** 처음 씨름판 반지름. 시간이 지나면 줄어든다 */
 export const RING_R = 62;
+export const RING_MIN = 36;
+export const SHRINK_START = 6;
+export const SHRINK_END = 24;
 export const BODY_R = 8;
 export const DURATION = 30;
 /** 이 시간 동안 새로 안 누르면 돌진 */
@@ -92,6 +96,12 @@ export class SumoPush implements MiniGame {
     return rankByElimination(this.wrestlers.map((w) => ({ seat: w.seat, outAt: w.outAt })));
   }
 
+  /** 지금 씨름판 반지름 */
+  ringR(t = this.t): number {
+    const k = Math.min(1, Math.max(0, (t - SHRINK_START) / (SHRINK_END - SHRINK_START)));
+    return RING_R + (RING_MIN - RING_R) * k;
+  }
+
   /** 가장 가까운 살아 있는 상대 */
   nearest(w: Wrestler): Wrestler | null {
     let best: Wrestler | null = null;
@@ -137,7 +147,7 @@ export class SumoPush implements MiniGame {
     this.collide();
     for (const w of this.wrestlers) {
       if (!w.alive) continue;
-      if (Math.hypot(w.x - RING_X, w.y - RING_Y) > RING_R) {
+      if (Math.hypot(w.x - RING_X, w.y - RING_Y) > this.ringR()) {
         w.alive = false;
         w.outAt = this.t;
         w.charge = 0;
@@ -198,9 +208,12 @@ export class SumoPush implements MiniGame {
   render(r: Renderer): void {
     r.clear(PAL.bgDark);
     // 씨름판: 모래 원과 가장자리 띠
-    r.disc(RING_X, RING_Y, RING_R + 4, PAL.line);
-    r.disc(RING_X, RING_Y, RING_R + 2, PAL.text);
-    r.disc(RING_X, RING_Y, RING_R, PAL.yellowShadow);
+    const radius = Math.round(this.ringR());
+    if (radius < RING_R) drawRing(r, RING_X, RING_Y, RING_R, PAL.bgMid);
+    const shrinking = this.t >= SHRINK_START && this.t < SHRINK_END && !this.done;
+    r.disc(RING_X, RING_Y, radius + 4, PAL.line);
+    r.disc(RING_X, RING_Y, radius + 2, shrinking && Math.floor(this.t * 3) % 2 === 0 ? PAL.red : PAL.text);
+    r.disc(RING_X, RING_Y, radius, PAL.yellowShadow);
     r.rect(RING_X - 14, RING_Y - 9, 2, 18, PAL.bgMid);
     r.rect(RING_X + 13, RING_Y - 9, 2, 18, PAL.bgMid);
 
@@ -286,7 +299,7 @@ class SumoAI implements AiController {
       const [lo, hi] = this.greed;
       this.target = lo + rng.next() * (hi - lo);
       // 링 가장자리에 몰렸으면 크게 모아 버틴다
-      if (Math.hypot(me.x - RING_X, me.y - RING_Y) > RING_R * 0.7) this.target = 1;
+      if (Math.hypot(me.x - RING_X, me.y - RING_Y) > g.ringR() * 0.7) this.target = 1;
     }
     if (me.charge < this.target) {
       this.hand.tap(0, 0, 0.04);

@@ -20,14 +20,14 @@ export const GROUND_Y = 152;
 export const RUN_SPEED = 92;
 /** 폭탄이 이 높이(머리)까지 오면 맞았는지 본다 */
 const HEAD_Y = GROUND_Y - 16;
-export const HIT_HALF_W = 8;
-const BOMB_SPEED_START = 70;
-const BOMB_SPEED_END = 125;
-const BOMB_RATE_START = 1.3;
-const BOMB_RATE_END = 4.0;
-export const EFFECT_TIME = 3;
+export const HIT_HALF_W = 10;
+const BOMB_SPEED_START = 90;
+const BOMB_SPEED_END = 165;
+const BOMB_RATE_START = 2.0;
+const BOMB_RATE_END = 6.5;
+export const EFFECT_TIME = 4;
 const SLOW_FACTOR = 0.45;
-const ITEM_EVERY = 4.5;
+const ITEM_EVERY = 3.5;
 
 export type ItemKind = 'reverse' | 'slow';
 

@@ -10,7 +10,7 @@ import { regionOf } from './G54';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G57 좀비 막기(협동): 가운데 기지를 향해 각자 자기 구역 가장자리에서 좀비가 걸어온다. 직접 탭해서 쓰러뜨린다.
-// 한 마리라도 기지에 닿으면 모두 끝. 순위는 개인 처치 수(팀 기록은 버틴 시간).
+// 한 마리라도 기지에 닿으면 모두 끝. 순위는 개인 처치 수(자기 쪽이 뚫린 사람은 꼴찌).
 
 /** 이만큼 버티면 성공으로 끝난다 */
 export const DURATION = 30;
@@ -20,11 +20,11 @@ export const BASE_R = 12;
 export const ZOMBIE_R = 6;
 export const HIT_R = ZOMBIE_R + 4;
 /** 구역 하나에서 초당 나오는 좀비 수(시작 → 끝) */
-const SPAWN_START = 0.8;
-const SPAWN_END = 3.6;
-const SPEED_START = 16;
-const SPEED_END = 34;
-const BIG_CHANCE = 0.15;
+const SPAWN_START = 1.0;
+const SPAWN_END = 6.5;
+const SPEED_START = 20;
+const SPEED_END = 48;
+const BIG_CHANCE = 0.22;
 
 export interface Zombie {
   id: number;
@@ -81,8 +81,10 @@ export class ZombieDefense implements MiniGame {
     return this.getScores();
   }
 
+  /** 처치 수 순. 단, 자기 쪽이 뚫린 사람은 맨 끝 */
   getRanking(): Seat[][] {
-    return rankByScore([...this.kills].map(([seat, score]) => ({ seat, score })));
+    const rest = rankByScore([...this.kills].filter(([seat]) => seat !== this.breachBy).map(([seat, score]) => ({ seat, score })));
+    return this.breachBy === null ? rest : [...rest, [this.breachBy]];
   }
 
   private progress(): number {
@@ -269,7 +271,7 @@ class ZombieDefenseAI implements AiController {
     controls: PlayerControls,
   ) {
     this.hand = new AiHand(controls);
-    this.interval = byDifficulty(player.difficulty, { easy: 0.6, normal: 0.45, hard: 0.34 });
+    this.interval = byDifficulty(player.difficulty, { easy: 0.36, normal: 0.26, hard: 0.2 });
     this.aim = byDifficulty(player.difficulty, { easy: 4, normal: 2.8, hard: 1.8 });
   }
 

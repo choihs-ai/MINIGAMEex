@@ -9,16 +9,16 @@ import { anchorOf, drawScoreTag, localOffset, facing } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G09 눈치 탭: 가운데 신호등이 초록불이 되는 순간 가장 먼저 누르면 +1.
-// 빨간불·노란불(페이크)에 누르면 -1이고 그 라운드는 더 못 누른다. 5라운드.
+// 빨간불·노란불(페이크)에 누르면 -1이고 그 라운드는 더 못 누른다. 7라운드.
 
-export const ROUNDS = 5;
-const RED_MIN = 1.1;
-const RED_MAX = 2.6;
+export const ROUNDS = 7;
+const RED_MIN = 0.8;
+const RED_MAX = 3.0;
 /** 노란불 페이크가 끼어들 확률과 길이 */
-const FAKE_CHANCE = 0.45;
-const FAKE_TIME = 0.5;
+const FAKE_CHANCE = 0.7;
+const FAKE_TIME = 0.3;
 /** 초록불 뒤 아무도 안 누르면 이 시간 뒤 라운드 종료 */
-export const GREEN_TIMEOUT = 1.5;
+export const GREEN_TIMEOUT = 1.0;
 const REVEAL_TIME = 0.9;
 
 export type Light = 'red' | 'yellow' | 'green' | 'off';
@@ -75,9 +75,10 @@ export class SignalTap implements MiniGame {
     const red = RED_MIN + rng.next() * (RED_MAX - RED_MIN);
     this.plan = [];
     if (rng.next() < FAKE_CHANCE) {
-      // 빨강 → 노랑(속임) → 빨강 → 초록
+      // 빨강 → 노랑(속임) → 빨강 → 초록. 가끔 속임이 두 번
       const first = red * (0.35 + rng.next() * 0.3);
-      this.plan.push(['red', first], ['yellow', FAKE_TIME], ['red', 0.4 + rng.next() * 0.8]);
+      this.plan.push(['red', first], ['yellow', FAKE_TIME], ['red', 0.3 + rng.next() * 0.7]);
+      if (rng.next() < 0.35) this.plan.push(['yellow', FAKE_TIME], ['red', 0.3 + rng.next() * 0.6]);
     } else {
       this.plan.push(['red', red]);
     }
@@ -213,7 +214,7 @@ class SignalTapAI implements AiController {
   ) {
     this.hand = new AiHand(controls);
     this.reaction = byDifficulty(player.difficulty, { easy: [0.36, 0.56], normal: [0.25, 0.45], hard: [0.2, 0.3] });
-    this.fooled = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.15, hard: 0.06 });
+    this.fooled = byDifficulty(player.difficulty, { easy: 0.18, normal: 0.08, hard: 0.03 });
   }
 
   think(dt: number): void {
