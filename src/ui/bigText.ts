@@ -42,11 +42,16 @@ function segRects(s: string, x: number, y: number, { w, h, t }: DigitSize): Arra
   return out;
 }
 
-export function numberWidth(text: string, size: DigitSize): number {
-  return text.length * size.w + (text.length - 1) * size.gap;
+/** 글자 하나의 폭: 숫자·빼기는 w, 소수점은 획 두께만큼 */
+function charWidth(ch: string, size: DigitSize): number {
+  return ch === '.' ? size.t : size.w;
 }
 
-/** 7세그 숫자. shadow를 주면 오른쪽 아래 1px 그림자를 깐다. ghost면 꺼진 세그먼트를 어둡게 보여준다. */
+export function numberWidth(text: string, size: DigitSize): number {
+  return [...text].reduce((n, ch, i) => n + charWidth(ch, size) + (i > 0 ? size.gap : 0), 0);
+}
+
+/** 7세그 숫자('.'과 '-'도 됨). shadow를 주면 오른쪽 아래 1px 그림자를 깐다. ghost면 꺼진 세그먼트를 어둡게 보여준다. */
 export function drawNumber(
   r: Renderer,
   text: string,
@@ -60,13 +65,19 @@ export function drawNumber(
   let left = x;
   if (opts.align === 'center') left = x - Math.floor(total / 2);
   else if (opts.align === 'right') left = x - total;
-  [...text].forEach((ch, i) => {
-    const dx = left + i * (size.w + size.gap);
-    if (opts.ghost) for (const q of segRects('abcdefg', dx, y, size)) r.rect(...q, PAL.bgMid);
-    const lit = segRects(SEGMENTS[ch] ?? '', dx, y, size);
+  let dx = left;
+  for (const ch of text) {
+    let lit: Array<[number, number, number, number]>;
+    if (ch === '.') {
+      lit = [[dx, y + size.h - size.t, size.t, size.t]];
+    } else {
+      if (opts.ghost) for (const q of segRects('abcdefg', dx, y, size)) r.rect(...q, PAL.bgMid);
+      lit = segRects(ch === '-' ? 'g' : (SEGMENTS[ch] ?? ''), dx, y, size);
+    }
     if (opts.shadow) for (const [qx, qy, qw, qh] of lit) r.rect(qx + 1, qy + 1, qw, qh, opts.shadow);
     for (const q of lit) r.rect(...q, color);
-  });
+    dx += charWidth(ch, size) + size.gap;
+  }
 }
 
 type GlyphRect = readonly [number, number, number, number];

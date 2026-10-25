@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
-import { rankByScore } from '../src/core/ranking';
+import { rankByElimination, rankByScore } from '../src/core/ranking';
 
 describe('rankByScore', () => {
   it('점수 높은 순, 공동 순위는 한 배열로 묶는다', () => {
@@ -35,5 +35,22 @@ describe('createRng', () => {
     expect(createRng(1).next()).not.toBe(createRng(2).next());
     const r = createRng(3);
     for (let i = 0; i < 100; i++) expect([0, 1, 2]).toContain(r.int(3));
+  });
+});
+
+describe('rankByElimination', () => {
+  it('생존자는 공동 1위, 나머지는 늦게 떨어진 순, 같은 순간은 공동', () => {
+    expect(
+      rankByElimination([
+        { seat: 0, outAt: 3 },
+        { seat: 1, outAt: null },
+        { seat: 2, outAt: 7 },
+        { seat: 3, outAt: 3 },
+      ]),
+    ).toEqual([[1], [2], [0, 3]]);
+  });
+
+  it('전원 탈락이면 마지막에 떨어진 사람이 1위', () => {
+    expect(rankByElimination([{ seat: 0, outAt: 1 }, { seat: 1, outAt: 2 }])).toEqual([[1], [0]]);
   });
 });

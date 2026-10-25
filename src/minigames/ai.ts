@@ -1,3 +1,4 @@
+import type { Rng } from '../core/rng';
 import type { PlayerControls } from '../input/controls';
 import type { Difficulty } from './types';
 
@@ -58,4 +59,9 @@ export class AiHand {
 
 export function byDifficulty<T>(d: Difficulty, values: { easy: T; normal: T; hard: T }): T {
   return values[d];
+}
+
+/** 표준편차가 대략 sigma인 흔들림(균등 난수 3개의 합). AI의 타이밍 오차에 쓴다. */
+export function jitter(rng: Rng, sigma: number): number {
+  return (rng.next() + rng.next() + rng.next() - 1.5) * 2 * sigma;
 }

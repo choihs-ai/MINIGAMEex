@@ -1,5 +1,6 @@
 import type { PlayerControls } from '../input/controls';
 import type { Seat } from '../input/seats';
+import { rankByElimination } from '../core/ranking';
 import { PAL } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { AiHand, byDifficulty } from './ai';
@@ -221,16 +222,7 @@ export class SpinningTopBattle implements MiniGame {
 
   private finish(): void {
     this.done = true;
-    const survivors = this.tops.filter((t) => t.alive).map((t) => t.seat);
-    const out = this.tops.filter((t) => !t.alive).sort((a, b) => b.outAt! - a.outAt!);
-    const groups: Seat[][] = survivors.length > 0 ? [survivors] : [];
-    let last: number | null = null;
-    for (const t of out) {
-      if (t.outAt === last) groups[groups.length - 1].push(t.seat);
-      else groups.push([t.seat]);
-      last = t.outAt;
-    }
-    this.ranking = groups;
+    this.ranking = rankByElimination(this.tops);
   }
 
   render(r: Renderer): void {

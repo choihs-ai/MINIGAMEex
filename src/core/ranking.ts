@@ -20,3 +20,26 @@ export function rankByScore(entries: readonly ScoreEntry[], higherIsBetter = tru
   }
   return groups;
 }
+
+export interface EliminationEntry {
+  seat: Seat;
+  /** 탈락한 시각(살아남았으면 null) */
+  outAt: number | null;
+}
+
+/**
+ * 탈락 역순 순위: 끝까지 살아남은 사람은 공동 1위, 나머지는 늦게 떨어진 순.
+ * 같은 순간에 떨어진 사람은 공동 순위.
+ */
+export function rankByElimination(entries: readonly EliminationEntry[]): Seat[][] {
+  const survivors = entries.filter((e) => e.outAt === null).map((e) => e.seat).sort((a, b) => a - b);
+  const out = entries.filter((e) => e.outAt !== null).sort((a, b) => b.outAt! - a.outAt! || a.seat - b.seat);
+  const groups: Seat[][] = survivors.length > 0 ? [survivors] : [];
+  let last: number | null = null;
+  for (const e of out) {
+    if (e.outAt === last) groups[groups.length - 1].push(e.seat);
+    else groups.push([e.seat]);
+    last = e.outAt;
+  }
+  return groups;
+}

@@ -166,6 +166,18 @@ export class Sfx {
     this.tone(200, 0.12, { vol: 0.12, slideTo: 640 });
   }
 
+  /** 북 소리(pitch 0~3: 자리마다 조금씩 다른 높이) */
+  drum(pitch = 0): void {
+    this.noise(0.05, 0.12);
+    this.tone(150 + pitch * 30, 0.12, { type: 'triangle', vol: 0.22, slideTo: 70 + pitch * 15 });
+  }
+
+  /** 물 첨벙 */
+  splash(): void {
+    this.noise(0.18, 0.12);
+    this.tone(900, 0.1, { type: 'sine', vol: 0.06, slideTo: 300 });
+  }
+
   /** 캐릭터별 참가음: 꾹이 딸깍, 레버 덜컹, 땡그랑 쨍, 캡슐 뽁 */
   character(seat: Seat): void {
     switch (seat) {

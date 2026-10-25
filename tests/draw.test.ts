@@ -6,7 +6,8 @@ import { READY_GAMES } from '../src/minigames/registry';
 import { tournamentPool } from '../src/modes/tournament';
 
 const RANDOM_POOL = GAME_INFO.filter((g) => g.random7 && !g.partyOnly);
-const READY = READY_GAMES.map(gameInfo);
+/** 게임이 아주 적을 때의 규칙을 보려고 고정한 3종(완성 게임이 늘어도 그대로) */
+const THREE = ['G01', 'G19', 'G22'].map(gameInfo);
 
 function check(seq: string[], opts: { categoryRule?: boolean } = {}): void {
   for (let i = 1; i < seq.length; i++) expect(seq[i]).not.toBe(seq[i - 1]);
@@ -70,26 +71,26 @@ describe('drawSet (토너먼트 게임 뽑기)', () => {
     expect(prevRate).toBeLessThan(otherRate * 0.6);
   });
 
-  it('완성된 게임(3종)만으로 7판: 처음 3판은 모두 다르고, 그 뒤로는 연달아 같은 게임이 없다', () => {
+  it('게임이 3종뿐이면 7판: 처음 3판은 모두 다르고, 그 뒤로는 연달아 같은 게임이 없다', () => {
     for (let seed = 1; seed <= 300; seed++) {
-      const seq = drawSet({ rounds: 7, pool: READY, fixed: [], banned: [], previous: [], rng: createRng(seed) });
+      const seq = drawSet({ rounds: 7, pool: THREE, fixed: [], banned: [], previous: [], rng: createRng(seed) });
       expect(seq).toHaveLength(7);
       expect(new Set(seq.slice(0, 3)).size).toBe(3);
       check(seq);
     }
   });
 
-  it('완성된 게임 중 둘을 밴하면 남은 하나로만 채운다', () => {
-    const seq = drawSet({ rounds: 5, pool: READY, fixed: [], banned: ['G01', 'G22'], previous: [], rng: createRng(1) });
+  it('3종 중 둘을 밴하면 남은 하나로만 채운다', () => {
+    const seq = drawSet({ rounds: 5, pool: THREE, fixed: [], banned: ['G01', 'G22'], previous: [], rng: createRng(1) });
     expect(seq).toEqual(['G19', 'G19', 'G19', 'G19', 'G19']);
   });
 
   it('모두 밴하면 빈 목록', () => {
-    expect(drawSet({ rounds: 3, pool: READY, fixed: [], banned: READY_GAMES.slice(), previous: [], rng: createRng(1) })).toEqual([]);
+    expect(drawSet({ rounds: 3, pool: THREE, fixed: [], banned: ['G01', 'G19', 'G22'], previous: [], rng: createRng(1) })).toEqual([]);
   });
 
   it('밴과 확정이 겹치면 밴이 우선', () => {
-    const seq = drawSet({ rounds: 3, pool: READY, fixed: ['G01'], banned: ['G01'], previous: [], rng: createRng(1) });
+    const seq = drawSet({ rounds: 3, pool: THREE, fixed: ['G01'], banned: ['G01'], previous: [], rng: createRng(1) });
     expect(seq).not.toContain('G01');
   });
 
@@ -102,8 +103,10 @@ describe('drawSet (토너먼트 게임 뽑기)', () => {
 
 describe('tournamentPool', () => {
   it('완성된 게임 중 랜덤 후보만, 권한 거부한 게임은 뺀다', () => {
-    expect(tournamentPool([]).map((g) => g.code)).toEqual(['G01', 'G19', 'G22']);
-    expect(tournamentPool(['G19']).map((g) => g.code)).toEqual(['G01', 'G22']);
+    const all = tournamentPool([]).map((g) => g.code);
+    expect(all).toEqual(READY_GAMES.filter((c) => gameInfo(c).random7 && !gameInfo(c).partyOnly));
+    expect(all).toContain('G19');
+    expect(tournamentPool(['G19']).map((g) => g.code)).toEqual(all.filter((c) => c !== 'G19'));
   });
 });
 

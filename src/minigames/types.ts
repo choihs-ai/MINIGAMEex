@@ -23,7 +23,21 @@ export interface PlayerInfo {
 export type FxApi = Pick<Fx, 'shake' | 'burst'>;
 export type SfxApi = Pick<
   Sfx,
-  'tap' | 'click' | 'beep' | 'go' | 'lose' | 'hit' | 'catchStar' | 'slash' | 'buzz' | 'signal' | 'turn' | 'dash'
+  | 'tap'
+  | 'click'
+  | 'beep'
+  | 'go'
+  | 'coin'
+  | 'lose'
+  | 'hit'
+  | 'catchStar'
+  | 'slash'
+  | 'buzz'
+  | 'signal'
+  | 'turn'
+  | 'dash'
+  | 'drum'
+  | 'splash'
 >;
 
 export interface GameContext {

@@ -20,6 +20,10 @@ export function drawMarker(r: Renderer, x: number, y: number, color: Color): voi
   r.rect(x, y - 1, 1, 1, color);
 }
 
+/** 모서리 버튼을 피한 왼쪽 가운데 빈자리(남은 시간 표시용) */
+export const TIMER_X = 24;
+export const TIMER_Y = 82;
+
 /** 남은 시간(초)을 작은 7세그 숫자로 */
 export function drawTimer(r: Renderer, seconds: number, x: number, y: number): void {
   const text = String(Math.max(0, Math.ceil(seconds)));
@@ -72,4 +76,61 @@ export function drawPadButtons(
     const glow = blink && (canPress?.(b.seat) ?? false);
     drawArcadeButton(r, b, p.color, { pressed, glow, arrow: layout === 'leftRight' ? (b.index === 0 ? -1 : 1) : undefined });
   }
+}
+
+/** 원 둘레만 1px로(중점 원 알고리즘) */
+export function drawRing(r: Renderer, cx: number, cy: number, radius: number, color: Color): void {
+  cx = Math.round(cx);
+  cy = Math.round(cy);
+  let x = 0;
+  let y = Math.round(radius);
+  let d = 1 - y;
+  while (x <= y) {
+    for (const [px, py] of [[x, y], [y, x], [-x, y], [-y, x], [x, -y], [y, -x], [-x, -y], [-y, -x]]) {
+      r.rect(cx + px, cy + py, 1, 1, color);
+    }
+    x++;
+    if (d < 0) d += 2 * x + 1;
+    else {
+      y--;
+      d += 2 * (x - y) + 1;
+    }
+  }
+}
+
+/** 모서리 버튼 사이 가운데 띠: 사람마다 세로 칸(레인)을 하나씩 나눠 준다 */
+export const LANE_FIELD = { x: 64, w: 192 } as const;
+
+export interface Lane {
+  seat: Seat;
+  x: number;
+  w: number;
+  /** 가운데 x */
+  cx: number;
+}
+
+/** 1P부터 왼쪽→오른쪽으로 레인을 나눈다(위쪽에 앉은 사람도 같은 방향으로 본다) */
+export function makeLanes(players: readonly PlayerInfo[]): Lane[] {
+  const ordered = [...players].sort((a, b) => a.seat - b.seat);
+  const w = Math.floor(LANE_FIELD.w / ordered.length);
+  const x0 = LANE_FIELD.x + Math.floor((LANE_FIELD.w - w * ordered.length) / 2);
+  return ordered.map((p, i) => ({ seat: p.seat, x: x0 + i * w, w, cx: x0 + i * w + w / 2 }));
+}
+
+/** 레인 사이 구분선(점선) */
+export function drawLaneDividers(r: Renderer, lanes: readonly Lane[]): void {
+  const first = lanes[0];
+  const last = lanes[lanes.length - 1];
+  if (!first || !last) return;
+  for (let y = 0; y < 180; y += 4) {
+    r.rect(first.x - 1, y, 1, 2, PAL.bgMid);
+    for (const lane of lanes) r.rect(lane.x + lane.w, y, 1, 2, PAL.bgMid);
+  }
+}
+
+/** 점프 높이(포물선). jumpT는 뛴 뒤 지난 시간(안 뛰고 있으면 null) */
+export function jumpHeight(jumpT: number | null, duration: number, peak: number): number {
+  if (jumpT === null) return 0;
+  const s = Math.min(1, Math.max(0, jumpT / duration));
+  return 4 * peak * s * (1 - s);
 }
