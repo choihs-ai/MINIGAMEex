@@ -1,13 +1,12 @@
 import { G01 } from './G01';
-import { G02 } from './G02';
 import { G03 } from './G03';
+import { G06 } from './G06';
+import { G07 } from './G07';
 import { G08 } from './G08';
-import { G09 } from './G09';
 import { G11 } from './G11';
-import { G13 } from './G13';
-import { G14 } from './G14';
+import { G16 } from './G16';
+import { G18 } from './G18';
 import { G19 } from './G19';
-import { G20 } from './G20';
 import { G21 } from './G21';
 import { G22 } from './G22';
 import { G23 } from './G23';
@@ -15,9 +14,14 @@ import { G24 } from './G24';
 import { G25 } from './G25';
 import { G26 } from './G26';
 import { G27 } from './G27';
-import { G28 } from './G28';
 import { G29 } from './G29';
 import { G30 } from './G30';
+import { G31 } from './G31';
+import { G32 } from './G32';
+import { G33 } from './G33';
+import { G35 } from './G35';
+import { G36 } from './G36';
+import { G41 } from './G41';
 import { G50 } from './G50';
 import { G51 } from './G51';
 import { G52 } from './G52';
@@ -28,15 +32,14 @@ import type { MiniGameEntry } from './types';
 
 export const GAMES: Readonly<Record<string, MiniGameEntry>> = {
   G01,
-  G02,
   G03,
+  G06,
+  G07,
   G08,
-  G09,
   G11,
-  G13,
-  G14,
+  G16,
+  G18,
   G19,
-  G20,
   G21,
   G22,
   G23,
@@ -44,9 +47,14 @@ export const GAMES: Readonly<Record<string, MiniGameEntry>> = {
   G25,
   G26,
   G27,
-  G28,
   G29,
   G30,
+  G31,
+  G32,
+  G33,
+  G35,
+  G36,
+  G41,
   G50,
   G51,
   G52,

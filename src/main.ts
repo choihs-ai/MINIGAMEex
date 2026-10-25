@@ -2,6 +2,7 @@ import { Sfx } from './audio/sfx';
 import { CharSheetScene } from './debug/charSheet';
 import { RenderTestScene } from './debug/renderTest';
 import { Fx } from './core/fx';
+import { sensors } from './core/sensors';
 import type { Game } from './core/game';
 import { startLoop } from './core/loop';
 import { lockPageGestures } from './core/page';
@@ -76,7 +77,10 @@ async function boot(): Promise<void> {
 
   const input = new Input(canvas, screen);
   const audio = new Sfx();
-  input.onGesture = () => audio.unlock();
+  input.onGesture = () => {
+    audio.unlock();
+    sensors.onGesture();
+  };
   const fx = new Fx();
   const scenes = new SceneManager();
   let slowLeft = 0;

@@ -46,6 +46,8 @@ export class PlayerControls {
   private releases: Drag[] = [];
   /** 지금 누른 채 끌고 있는 손가락(첫 손가락 하나) */
   drag: Drag | null = null;
+  private dragId = 0;
+  private readonly fingers = new Map<number, Point>();
 
   constructor(readonly buttonCount: number) {
     this.held = new Array<number>(buttonCount).fill(0);
@@ -94,21 +96,43 @@ export class PlayerControls {
     return this.held[b] > 0 ? this.heldTime[b] : 0;
   }
 
-  pointerDown(x: number, y: number): void {
+  /** 화면에 손가락이 닿았다. id는 손가락 번호(여러 손가락을 따로 따라갈 때) */
+  pointerDown(x: number, y: number, id = 0): void {
     this.taps.push({ x, y });
-    if (!this.drag) this.drag = { startX: x, startY: y, x, y };
+    this.fingers.set(id, { x, y });
+    if (!this.drag) {
+      this.drag = { startX: x, startY: y, x, y };
+      this.dragId = id;
+    }
   }
 
-  pointerMove(x: number, y: number): void {
-    if (!this.drag) return;
+  pointerMove(x: number, y: number, id = 0): void {
+    const f = this.fingers.get(id);
+    if (f) {
+      f.x = x;
+      f.y = y;
+    }
+    if (!this.drag || this.dragId !== id) return;
     this.drag.x = x;
     this.drag.y = y;
   }
 
-  pointerUp(): void {
-    if (!this.drag) return;
+  pointerUp(id = 0): void {
+    this.fingers.delete(id);
+    if (!this.drag || this.dragId !== id) return;
     this.releases.push({ ...this.drag });
     this.drag = null;
+  }
+
+  /** 닿아 있는 손가락을 모두 뗀다 */
+  releasePointers(): void {
+    for (const id of [...this.fingers.keys()]) this.pointerUp(id);
+    if (this.drag) this.pointerUp(this.dragId);
+  }
+
+  /** 지금 화면에 닿아 있는 손가락들 */
+  get touching(): readonly Point[] {
+    return [...this.fingers.values()];
   }
 
   /** 이번 틱에 화면에 닿은 위치들 */
@@ -131,4 +155,16 @@ export class PlayerControls {
       if (this.held[b] > 0) this.heldTime[b] += dt;
     }
   }
+}
+
+/** 드래그를 가상 조이스틱으로: 누른 곳에서 손가락까지의 방향(길이 0~1). range px 이상 끌면 1. */
+export function stickOf(c: PlayerControls, range = 16, dead = 3): Point {
+  const d = c.drag;
+  if (!d) return { x: 0, y: 0 };
+  const dx = d.x - d.startX;
+  const dy = d.y - d.startY;
+  const len = Math.hypot(dx, dy);
+  if (len < dead) return { x: 0, y: 0 };
+  const k = Math.min(1, len / range) / len;
+  return { x: dx * k, y: dy * k };
 }

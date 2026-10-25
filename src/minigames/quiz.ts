@@ -5,7 +5,7 @@ import { PAL } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { CHAR_SIZE, drawCharacter } from '../ui/characters';
 import { AiHand, byDifficulty } from './ai';
-import { anchorOf, drawScoreTag, localOffset, drawTimer, facing, TIMER_X, TIMER_Y } from './common';
+import { drawScoreTag, localOffset, drawTimer, facing, sideAnchor, TIMER_X, TIMER_Y } from './common';
 import type { AiController, GameContext, MiniGame, PlayerInfo } from './types';
 
 // 가운데 문제를 보고 맞는 버튼을 가장 먼저 누르는 게임의 공통 틀(G20 가위바위보, G21 색깔 함정).
@@ -42,6 +42,15 @@ export abstract class QuizGame implements MiniGame {
   protected abstract newQuestion(): void;
   /** 가운데 문제 그림 */
   protected abstract drawQuestion(r: Renderer): void;
+  /** 문제를 보여주기만 하는 시간(이 동안은 눌러도 무시. 개수 세기·사라진 것 찾기처럼 먼저 보여 주는 게임) */
+  protected leadTime(): number {
+    return 0;
+  }
+
+  /** 지금 답을 받는 중인가 */
+  get answering(): boolean {
+    return this.phase === 'ask' && this.phaseT >= this.leadTime();
+  }
 
   setup(ctx: GameContext): void {
     this.ctx = ctx;
@@ -62,7 +71,7 @@ export abstract class QuizGame implements MiniGame {
   }
 
   canPress(seat: Seat): boolean {
-    return this.phase === 'ask' && !this.locked.has(seat) && !this.done;
+    return this.answering && !this.locked.has(seat) && !this.done;
   }
 
   getScores(): Partial<Record<Seat, number>> {
@@ -83,7 +92,7 @@ export abstract class QuizGame implements MiniGame {
     if (this.done) return;
     this.phaseT += dt;
 
-    if (this.phase === 'ask') {
+    if (this.phase === 'ask' && this.phaseT >= this.leadTime()) {
       const winners: Seat[] = [];
       for (const p of this.ctx.players) {
         if (this.locked.has(p.seat)) continue;
@@ -105,7 +114,7 @@ export abstract class QuizGame implements MiniGame {
         this.ctx.sfx.coin();
         this.ctx.fx.shake(2, 0.1);
         this.toPhase('reveal');
-      } else if (this.phaseT >= ASK_TIMEOUT || this.ctx.players.every((p) => this.locked.has(p.seat))) {
+      } else if (this.phaseT >= this.leadTime() + this.askTimeout() || this.ctx.players.every((p) => this.locked.has(p.seat))) {
         this.toPhase('reveal');
       }
     } else if (this.phase === 'gap' && this.phaseT >= this.gapTime) {
@@ -123,6 +132,11 @@ export abstract class QuizGame implements MiniGame {
     if (this.t >= this.duration) this.done = true;
   }
 
+  /** 답을 받는 시간 */
+  protected askTimeout(): number {
+    return ASK_TIMEOUT;
+  }
+
   private toPhase(phase: QuizPhase): void {
     this.phase = phase;
     this.phaseT = 0;
@@ -132,7 +146,7 @@ export abstract class QuizGame implements MiniGame {
     r.clear(PAL.bgDark);
     if (this.phase !== 'gap') this.drawQuestion(r);
     for (const p of this.ctx.players) {
-      const a = anchorOf(p, this.ctx.humanCount);
+      const a = sideAnchor(p, this.ctx.humanCount);
       const won = this.phase === 'reveal' && this.winners.includes(p.seat);
       const pose = won ? 'win' : this.locked.has(p.seat) ? 'lose' : 'idle';
       facing(r, p, a.x, a.y, () => {
@@ -175,7 +189,7 @@ export class QuizAI implements AiController {
       if (this.hand.busy) this.hand.reset();
       return;
     }
-    if (g.question === this.question) return;
+    if (g.question === this.question || !g.answering) return;
     this.question = g.question;
     const rng = g.rng;
     const [lo, hi] = this.reaction;

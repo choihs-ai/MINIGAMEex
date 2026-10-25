@@ -179,3 +179,10 @@ export function drawScoreTag(r: Renderer, p: PlayerInfo, x: number, y: number, s
 export function localOffset(p: Pick<PlayerInfo, 'flipped'>, a: { x: number; y: number }, ox: number, oy: number): { x: number; y: number } {
   return p.flipped ? { x: a.x - ox, y: a.y - oy } : { x: a.x + ox, y: a.y + oy };
 }
+
+/** anchorOf와 같지만 2인일 때는 가운데를 비우려고 옆으로 비켜 선다(아래 사람은 왼쪽, 위 사람은 그 사람 기준 왼쪽 = 화면 오른쪽) */
+export function sideAnchor(p: PlayerInfo, humanCount: number): { x: number; y: number } {
+  const a = anchorOf(p, humanCount);
+  if (humanCount === 2) a.x += p.flipped ? 100 : -100;
+  return a;
+}

@@ -8,7 +8,8 @@ import { AiHand, byDifficulty } from './ai';
 import { drawScoreTag, drawTimer, facing, TIMER_X, TIMER_Y } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
-// G54 편의점 알바: 가운데 손님이 원하는 물건을 자기 진열대에서 가장 먼저 찾아 탭하면 +1.
+// G54 편의점 알바(G10 같은 그림 찾기·G55 요리 주문 흡수): 가운데 손님이 원하는 물건을 자기 진열대에서 가장 먼저 찾아 탭하면 +1.
+// 8초가 지나면 물건 두 개를 순서대로 원하는 손님도 온다(순서대로 다 눌러야 함).
 // 진열대는 사람마다 자기 구역에 있고, 손님이 바뀔 때마다 물건 자리가 섞인다. 엉뚱한 물건을 누르면 잠깐 못 누른다.
 
 export const DURATION = 25;
@@ -21,6 +22,8 @@ const SHELF_W = SHELF_COLS * CELL + (SHELF_COLS - 1) * GAP;
 const SHELF_H = SHELF_ROWS * CELL + (SHELF_ROWS - 1) * GAP;
 export const WRONG_LOCK = 1.0;
 const NEXT_GAP = 0.3;
+const COMBO_AFTER = 8;
+const COMBO_CHANCE = 0.45;
 
 /**
  * 이 플레이어 진열대가 놓이는 구역. 2인 이상은 자기 터치 구역,
@@ -38,17 +41,21 @@ export interface Shelf {
   lockedUntil: number;
   region: Rect;
   flipped: boolean;
+  /** 이번 손님 주문에서 몇 개째까지 찾았는지, 찾은 칸 */
+  step: number;
+  picked: number[];
 }
 
 export class ConvenienceStore implements MiniGame {
   readonly code = 'G54';
   t = 0;
   shelves: Shelf[] = [];
-  /** 손님이 원하는 물건(손님이 없으면 null) */
-  wanted: number | null = null;
+  /** 손님이 원하는 물건들(순서대로, 손님이 없으면 null) */
+  order: number[] | null = null;
   customer = 0;
   readonly scores = new Map<Seat, number>();
   lastWinner: Seat[] = [];
+  private lastFirst = -1;
   private gapLeft = 0.4;
   private ctx!: GameContext;
   private done = false;
@@ -61,6 +68,8 @@ export class ConvenienceStore implements MiniGame {
       lockedUntil: -1,
       region: regionOf(p, ctx.humanCount),
       flipped: ctx.humanCount >= 2 && p.flipped,
+      step: 0,
+      picked: [],
     }));
     for (const p of ctx.players) this.scores.set(p.seat, 0);
   }
@@ -100,16 +109,26 @@ export class ConvenienceStore implements MiniGame {
     return { x: region.x + region.w - lx - CELL, y: region.y + region.h - ly - CELL, w: CELL, h: CELL };
   }
 
+  /** 손님이 원하는 첫 물건 */
+  get wanted(): number | null {
+    return this.order?.[0] ?? null;
+  }
+
   private newCustomer(): void {
     const rng = this.ctx.rng;
-    let wanted = Math.floor(rng.next() * ITEM_KINDS);
-    if (wanted === this.wanted) wanted = (wanted + 1) % ITEM_KINDS;
-    this.wanted = wanted;
+    let first = Math.floor(rng.next() * ITEM_KINDS);
+    if (first === this.lastFirst) first = (first + 1) % ITEM_KINDS;
+    this.lastFirst = first;
+    const order = [first];
+    if (this.t >= COMBO_AFTER && rng.next() < COMBO_CHANCE) order.push((first + 1 + Math.floor(rng.next() * (ITEM_KINDS - 1))) % ITEM_KINDS);
+    this.order = order;
     this.customer++;
     for (const s of this.shelves) {
-      // 원하는 물건 하나 + 다른 물건들(겹칠 수 있음)을 섞어 놓는다
-      const others = [...Array(ITEM_KINDS).keys()].filter((k) => k !== wanted);
-      const items = [wanted];
+      // 원하는 물건(하나씩) + 다른 물건들(겹칠 수 있음)을 섞어 놓는다
+      s.step = 0;
+      s.picked = [];
+      const others = [...Array(ITEM_KINDS).keys()].filter((k) => !order.includes(k));
+      const items = [...order];
       while (items.length < SHELF_COLS * SHELF_ROWS) items.push(others[Math.floor(rng.next() * others.length)]);
       for (let i = items.length - 1; i > 0; i--) {
         const j = Math.floor(rng.next() * (i + 1));
@@ -122,19 +141,27 @@ export class ConvenienceStore implements MiniGame {
   update(dt: number): void {
     this.t += dt;
     if (this.done) return;
-    if (this.wanted === null) {
+    if (this.order === null) {
       this.gapLeft -= dt;
       if (this.gapLeft <= 0) this.newCustomer();
     } else {
+      const order = this.order;
       const winners: Seat[] = [];
       for (const s of this.shelves) {
         if (this.locked(s.seat)) continue;
         for (const tap of this.ctx.controls.get(s.seat)!.tapsThisTick) {
           const i = s.items.findIndex((_, k) => inRect(this.cellRect(s, k), tap.x, tap.y));
-          if (i < 0) continue;
-          if (s.items[i] === this.wanted) winners.push(s.seat);
-          else {
+          if (i < 0 || s.picked.includes(i)) continue;
+          if (s.items[i] === order[s.step]) {
+            s.step++;
+            s.picked.push(i);
+            if (s.step >= order.length) winners.push(s.seat);
+            else this.ctx.sfx.tap();
+          } else {
+            // 틀리면 잠깐 못 누르고 처음부터 다시
             s.lockedUntil = this.t + WRONG_LOCK;
+            s.step = 0;
+            s.picked = [];
             this.ctx.sfx.buzz();
           }
           break;
@@ -143,7 +170,7 @@ export class ConvenienceStore implements MiniGame {
       if (winners.length > 0) {
         for (const w of winners) this.scores.set(w, (this.scores.get(w) ?? 0) + 1);
         this.lastWinner = winners;
-        this.wanted = null;
+        this.order = null;
         this.gapLeft = NEXT_GAP;
         this.ctx.sfx.coin();
         for (const w of winners) {
@@ -178,7 +205,7 @@ export class ConvenienceStore implements MiniGame {
       const c = this.cellRect(s, i);
       r.rect(c.x, c.y, c.w, c.h, PAL.bgMid);
       r.rect(c.x, c.y + (s.flipped ? 0 : c.h - 2), c.w, 2, PAL.line);
-      if (locked) return;
+      if (locked || s.picked.includes(i)) return;
       const icon = itemSprite(item);
       const ix = c.x + (c.w - icon.width) / 2;
       const iy = c.y + (c.h - icon.height) / 2;
@@ -194,14 +221,20 @@ export class ConvenienceStore implements MiniGame {
   private drawCustomer(r: Renderer): void {
     const cx = 160;
     const cy = 90;
-    r.rect(cx - 19, cy - 15, 38, 30, PAL.line);
-    r.frame(cx - 19, cy - 15, 38, 30, PAL.text);
-    if (this.wanted === null) {
+    const n = this.order?.length ?? 1;
+    const bw = n === 1 ? 38 : 68;
+    r.rect(cx - bw / 2, cy - 15, bw, 30, PAL.line);
+    r.frame(cx - bw / 2, cy - 15, bw, 30, PAL.text);
+    if (this.order === null) {
       r.text('감사!', cx, cy - 4, PAL.yellow, 'center');
       return;
     }
-    const icon = itemSprite(this.wanted);
-    r.ctx.drawImage(icon, cx - icon.width, cy - icon.height, icon.width * 2, icon.height * 2);
+    this.order.forEach((item, k) => {
+      const icon = itemSprite(item);
+      const ix = n === 1 ? cx - icon.width : cx - 32 + k * 34;
+      r.ctx.drawImage(icon, ix, cy - icon.height, icon.width * 2, icon.height * 2);
+      if (n > 1) r.text(String(k + 1), ix - 2, cy - 14, PAL.yellow);
+    });
   }
 }
 
@@ -300,7 +333,7 @@ class ConvenienceStoreAI implements AiController {
     this.hand.update(dt);
     const g = this.game;
     if (g.finished) return;
-    if (g.wanted === null) {
+    if (g.order === null) {
       this.hand.reset();
       return;
     }
@@ -308,7 +341,7 @@ class ConvenienceStoreAI implements AiController {
     this.customer = g.customer;
     const shelf = g.shelves.find((s) => s.seat === this.player.seat)!;
     const rng = g.rng;
-    const i = shelf.items.indexOf(g.wanted);
+    const i = shelf.items.indexOf(g.order[0]);
     let delay = this.search[0] + rng.next() * (this.search[1] - this.search[0]);
     if (rng.next() < this.wrong) {
       // 헷갈려서 옆 칸을 누르고, 잠긴 시간이 끝난 뒤 다시 정답을 누른다
@@ -319,6 +352,13 @@ class ConvenienceStoreAI implements AiController {
     }
     const c = g.cellRect(shelf, i);
     this.hand.tapAt(c.x + c.w / 2, c.y + c.h / 2, delay);
+    // 두 개 주문이면 이어서 두 번째 물건
+    for (const item of g.order.slice(1)) {
+      delay += (this.search[0] + rng.next() * (this.search[1] - this.search[0])) * 0.7;
+      const k = shelf.items.indexOf(item);
+      const c2 = g.cellRect(shelf, k);
+      this.hand.tapAt(c2.x + c2.w / 2, c2.y + c2.h / 2, delay);
+    }
   }
 }
 

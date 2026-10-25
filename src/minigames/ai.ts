@@ -1,11 +1,15 @@
 import type { Rng } from '../core/rng';
 import type { PlayerControls } from '../input/controls';
+
+/** AI 조이스틱이 끄는 거리(stickOf 기본 범위와 같게) */
+const STICK_RANGE = 16;
 import type { Difficulty } from './types';
 
 type Action =
   | { at: number; kind: 'press' | 'release'; button: number }
   | { at: number; kind: 'down' | 'move'; x: number; y: number }
-  | { at: number; kind: 'up' };
+  | { at: number; kind: 'up' }
+  | { at: number; kind: 'stick' | 'point'; x: number; y: number };
 
 /**
  * AI의 "손". 정해진 시각에 버튼을 누르고 떼거나, 화면을 탭·드래그하는 예약만 할 수 있다.
@@ -37,6 +41,20 @@ export class AiHand {
     this.schedule({ at: delay + 0.04, kind: 'up' });
   }
 
+  /** 가상 조이스틱을 (dx, dy) 방향(길이 0~1)으로 민다. 손을 떼려면 stickRelease */
+  stick(dx: number, dy: number, delay = 0): void {
+    this.schedule({ at: delay, kind: 'stick', x: dx, y: dy });
+  }
+
+  /** 손가락을 화면 (x, y)에 대거나 그리로 옮긴다 */
+  pointTo(x: number, y: number, delay = 0): void {
+    this.schedule({ at: delay, kind: 'point', x, y });
+  }
+
+  stickRelease(delay = 0): void {
+    this.schedule({ at: delay, kind: 'up' });
+  }
+
   /** delay초 뒤에 (sx, sy)를 누르고 duration초 동안 (ex, ey)까지 끈 다음 뗀다 */
   drag(sx: number, sy: number, ex: number, ey: number, delay = 0, duration = 0.3): void {
     this.schedule({ at: delay, kind: 'down', x: sx, y: sy });
@@ -52,7 +70,7 @@ export class AiHand {
   reset(): void {
     this.queue = [];
     this.controls.releaseAll();
-    this.controls.pointerUp();
+    this.controls.releasePointers();
   }
 
   get busy(): boolean {
@@ -67,7 +85,15 @@ export class AiHand {
       else if (a.kind === 'release') this.controls.release(a.button);
       else if (a.kind === 'down') this.controls.pointerDown(a.x, a.y);
       else if (a.kind === 'move') this.controls.pointerMove(a.x, a.y);
-      else this.controls.pointerUp();
+      else if (a.kind === 'point') {
+        // 손가락을 (x, y)에 둔다(이미 닿아 있으면 그리로 끈다)
+        if (!this.controls.drag) this.controls.pointerDown(a.x, a.y);
+        else this.controls.pointerMove(a.x, a.y);
+      } else if (a.kind === 'stick') {
+        // 가상 조이스틱: 처음이면 (0,0)을 누르고, 방향만큼 끈다
+        if (!this.controls.drag) this.controls.pointerDown(0, 0);
+        this.controls.pointerMove(a.x * STICK_RANGE, a.y * STICK_RANGE);
+      } else this.controls.pointerUp();
     }
   }
 

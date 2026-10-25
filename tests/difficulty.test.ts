@@ -4,8 +4,6 @@ import type { Seat } from '../src/input/seats';
 import { ARENA_MIN, ARENA_R, G01, SHRINK_END, type SpinningTopBattle } from '../src/minigames/G01';
 import { CRASH_PENALTY, G08, type TwinShip } from '../src/minigames/G08';
 import { G11, type MoleGrab } from '../src/minigames/G11';
-import { G13, RING_MIN, RING_R, type SumoPush } from '../src/minigames/G13';
-import { AUTO_DROP, G14, type BlockTower } from '../src/minigames/G14';
 import { G27, type TankBattle } from '../src/minigames/G27';
 import { G19, type QuickDraw } from '../src/minigames/G19';
 import { G53, type FishingDuel } from '../src/minigames/G53';
@@ -19,13 +17,10 @@ const tap = (h: Harness, seat: Seat) => {
 };
 
 describe('끝까지 버티기 어렵게(승부가 나게)', () => {
-  it('G01·G13: 경기장·씨름판이 시간이 지나면 줄어든다', () => {
+  it('G01: 경기장이 시간이 지나면 줄어든다', () => {
     const top = harness<SpinningTopBattle>(G01, [0, 1]).game;
     expect(top.arenaR(0)).toBe(ARENA_R);
     expect(top.arenaR(SHRINK_END)).toBe(ARENA_MIN);
-    const sumo = harness<SumoPush>(G13, [0, 1]).game;
-    expect(sumo.ringR(0)).toBe(RING_R);
-    expect(sumo.ringR(99)).toBe(RING_MIN);
   });
 
   it('G08: 운석에 부딪힌 배는 멈추고 팀 점수가 깎인다', () => {
@@ -50,12 +45,6 @@ describe('끝까지 버티기 어렵게(승부가 나게)', () => {
 });
 
 describe('가만히 있으면 손해', () => {
-  it('G14: 안 누르고 있으면 블록이 저절로 떨어진다', () => {
-    const h = harness<BlockTower>(G14, [0, 1]);
-    h.step(Math.ceil((AUTO_DROP + 0.5) / STEP));
-    expect(h.game.towers.every((t) => t.blocks.length >= 1)).toBe(true);
-  });
-
   it('G27: 끝까지 살아남은 사람끼리는 많이 맞힌 순', () => {
     const h = harness<TankBattle>(G27, [0, 1]);
     const [a, b] = h.game.tanks;

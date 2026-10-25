@@ -177,6 +177,7 @@ describe('G22 별 받기', () => {
 
   it('바구니는 경기장 밖으로 나가지 않는다', () => {
     const h = harness<StarCatch>(G22, [0, 1]);
+    h.game.nextSwap = 99;
     h.controls.get(0)!.press(BTN_LEFT);
     h.step(300);
     expect(h.game.baskets[0].x).toBe(FIELD_X + BASKET_W / 2);

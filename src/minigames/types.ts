@@ -68,6 +68,8 @@ export interface MiniGame {
   canPress?(seat: Seat): boolean;
   /** 차례제 게임(pointer: 'turn')에서 지금 화면을 만질 차례인 사람. 아무도 아니면 null */
   activeSeat?(): Seat | null;
+  /** 판 도중에 바뀌는 버튼 모양(보기 숫자·그림 등). 없으면 등록할 때 정한 padStyle */
+  padStyle?(seat: Seat, index: number): PadStyle | null;
 }
 
 export interface AiController {

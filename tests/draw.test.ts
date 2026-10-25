@@ -20,8 +20,8 @@ function check(seq: string[], opts: { categoryRule?: boolean } = {}): void {
 }
 
 describe('drawSet (토너먼트 게임 뽑기)', () => {
-  it('세부표의 랜덤 후보는 54종이고 파티 게임은 없다', () => {
-    expect(RANDOM_POOL).toHaveLength(54);
+  it('세부표의 랜덤 후보는 39종이고 파티 게임은 없다(파티는 따로 뺀 파일)', () => {
+    expect(RANDOM_POOL).toHaveLength(39);
     expect(RANDOM_POOL.some((g) => g.category === '파티')).toBe(false);
   });
 
@@ -37,7 +37,7 @@ describe('drawSet (토너먼트 게임 뽑기)', () => {
   });
 
   it('확정 게임은 모두 들어가고 밴 게임은 안 나온다', () => {
-    const fixed = ['G13', 'G27', 'G50'];
+    const fixed = ['G11', 'G27', 'G50'];
     const banned = ['G01', 'G22', 'G19', 'G03', 'G04', 'G12'];
     for (let seed = 1; seed <= 300; seed++) {
       const seq = drawSet({ rounds: 5, pool: RANDOM_POOL, fixed, banned, previous: [], rng: createRng(seed) });
@@ -48,7 +48,7 @@ describe('drawSet (토너먼트 게임 뽑기)', () => {
   });
 
   it('확정 게임이 판 수와 같으면 확정 게임만, 순서는 섞인다', () => {
-    const fixed = ['G13', 'G27', 'G50'];
+    const fixed = ['G11', 'G27', 'G50'];
     const orders = new Set<string>();
     for (let seed = 1; seed <= 50; seed++) {
       const seq = drawSet({ rounds: 3, pool: RANDOM_POOL, fixed, banned: [], previous: [], rng: createRng(seed) });

@@ -10,6 +10,7 @@ import { defineGame, type AiController, type GameContext, type MiniGame, type Pl
 
 // G22 별 받기: 바구니를 좌우로 움직여 떨어지는 별을 받는다. 남의 쪽 별도 가로챌 수 있다.
 // 바구니는 모두 아래쪽 한 줄(위쪽에 앉은 사람도 같은 방향에서 받는다). 가운데 경기장 안에서만 움직인다.
+// (G44 화면 회전 혼돈 흡수) 가끔 좌우 조작이 몇 초 동안 뒤바뀐다(바뀌기 전에 ⇄ 경고).
 
 export const DURATION = 20;
 /** 경기장(모서리 버튼을 피한 가운데 띠) */
@@ -24,6 +25,9 @@ const STAR_SPEED_START = 85;
 const STAR_SPEED_END = 150;
 /** 참가자 1명당 초당 별 수 */
 const STARS_PER_PLAYER = 1.1;
+/** 좌우가 뒤바뀌는 시간과 그 전 경고 */
+export const SWAP_TIME = 3.5;
+const SWAP_WARN = 0.8;
 
 export interface Basket {
   seat: Seat;
@@ -48,6 +52,8 @@ export class StarCatch implements MiniGame {
   private ctx!: GameContext;
   private done = false;
   private spawnClock = 0.3;
+  /** 다음에 좌우가 뒤바뀌기 시작하는 시각 */
+  nextSwap = 4;
 
   setup(ctx: GameContext): void {
     this.ctx = ctx;
@@ -81,6 +87,11 @@ export class StarCatch implements MiniGame {
     return rankByScore(this.baskets.map((b) => ({ seat: b.seat, score: b.count })));
   }
 
+  /** 지금 좌우가 뒤바뀌어 있는가 */
+  swapped(t = this.t): boolean {
+    return t >= this.nextSwap && t < this.nextSwap + SWAP_TIME;
+  }
+
   starSpeed(): number {
     return STAR_SPEED_START + (STAR_SPEED_END - STAR_SPEED_START) * Math.min(1, this.t / DURATION);
   }
@@ -92,13 +103,18 @@ export class StarCatch implements MiniGame {
     for (const b of this.baskets) {
       const c = this.ctx.controls.get(b.seat)!;
       // 버튼은 플레이어 기준 좌/우. 위쪽에 앉은 사람은 화면을 거꾸로 보므로 자기 왼쪽 = 화면 오른쪽.
-      const local = (c.isDown(BTN_RIGHT) ? 1 : 0) - (c.isDown(BTN_LEFT) ? 1 : 0);
+      let local = (c.isDown(BTN_RIGHT) ? 1 : 0) - (c.isDown(BTN_LEFT) ? 1 : 0);
+      if (this.swapped()) local = -local;
       const dir = b.flipped ? -local : local;
       const min = FIELD_X + BASKET_W / 2;
       const max = FIELD_X + FIELD_W - BASKET_W / 2;
       b.x = Math.max(min, Math.min(max, b.x + dir * BASKET_SPEED * dt));
     }
 
+    if (this.t >= this.nextSwap + SWAP_TIME) {
+      this.nextSwap = this.t + 3 + this.ctx.rng.next() * 3;
+    }
+    if (this.swapped() && !this.swapped(this.t - dt)) this.ctx.sfx.signal();
     this.spawnClock -= dt;
     if (this.spawnClock <= 0) {
       this.spawnClock += 1 / (STARS_PER_PLAYER * this.baskets.length);
@@ -149,6 +165,16 @@ export class StarCatch implements MiniGame {
       r.ctx.drawImage(starSprite(), x - 4, y - 4);
     }
     for (const b of this.baskets) this.drawBasket(r, b);
+    // 좌우 뒤바뀜: 경고는 깜빡, 바뀐 동안은 계속 표시(위·아래 둘 다)
+    const warn = this.t >= this.nextSwap - SWAP_WARN && this.t < this.nextSwap && Math.floor(this.t * 8) % 2 === 0;
+    if (this.swapped() || warn) {
+      const c = this.swapped() ? PAL.red : PAL.yellow;
+      for (const y of [70, 104]) {
+        r.rect(146, y, 28, 9, PAL.line);
+        r.text('반대!', 160, y, c, 'center');
+      }
+      r.frame(FIELD_X - 1, 0, FIELD_W + 2, 180, c);
+    }
     drawTimer(r, DURATION - this.t, 160, 1);
   }
 
@@ -188,6 +214,7 @@ class StarCatchAI implements AiController {
   private dir: -1 | 0 | 1 = 0;
   private readonly interval: number;
   private readonly misjudge: number;
+  private readonly confusion: number;
 
   constructor(
     private readonly game: StarCatch,
@@ -197,6 +224,7 @@ class StarCatchAI implements AiController {
     this.hand = new AiHand(controls);
     this.interval = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.15, hard: 0.06 });
     this.misjudge = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.1, hard: 0 });
+    this.confusion = byDifficulty(player.difficulty, { easy: 1.2, normal: 0.6, hard: 0.25 });
   }
 
   think(dt: number): void {
@@ -222,7 +250,8 @@ class StarCatchAI implements AiController {
 
     let screenDir: -1 | 0 | 1 = 0;
     if (target && Math.abs(target.x - me.x) > 3) screenDir = target.x > me.x ? 1 : -1;
-    const local = (me.flipped ? -screenDir : screenDir) as -1 | 0 | 1;
+    let local = (me.flipped ? -screenDir : screenDir) as -1 | 0 | 1;
+    if (this.game.swapped() && this.game.t - this.game.nextSwap >= this.confusion) local = -local as -1 | 0 | 1;
     if (local === this.dir) return;
     if (this.dir !== 0) this.hand.releaseIn(this.dir < 0 ? BTN_LEFT : BTN_RIGHT);
     if (local !== 0) this.hand.pressIn(local < 0 ? BTN_LEFT : BTN_RIGHT);

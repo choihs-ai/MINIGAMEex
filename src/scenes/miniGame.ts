@@ -20,8 +20,6 @@ interface Finger {
   seat: Seat;
   /** 누르고 있는 버튼 번호. 화면을 직접 만지는 손가락이면 -1 */
   button: number;
-  /** 드래그로 쓰는 손가락(화면 직접 조작에서 그 사람의 첫 손가락) */
-  drag: boolean;
 }
 
 /**
@@ -108,14 +106,13 @@ export class MiniGameScene implements Scene {
       const controls = player && this.controls.get(player.seat);
       if (!player || !controls) return;
       if (this.layouts.get(player.seat) === 'pointer') {
-        const drag = controls.drag === null;
-        controls.pointerDown(x, y);
-        this.fingers.set(id, { seat: player.seat, button: -1, drag });
+        controls.pointerDown(x, y, id);
+        this.fingers.set(id, { seat: player.seat, button: -1 });
         return;
       }
       const button = padAt(this.pads, x, y, player.seat)?.index ?? 0;
       controls.press(button);
-      this.fingers.set(id, { seat: player.seat, button, drag: false });
+      this.fingers.set(id, { seat: player.seat, button });
       return;
     }
     const held = this.fingers.get(id);
@@ -123,12 +120,12 @@ export class MiniGameScene implements Scene {
     if (!held || !controls) return;
     if (e.type === 'up') {
       if (held.button >= 0) controls.release(held.button);
-      else if (held.drag) controls.pointerUp();
+      else controls.pointerUp(id);
       this.fingers.delete(id);
       return;
     }
     if (held.button < 0) {
-      if (held.drag) controls.pointerMove(x, y);
+      controls.pointerMove(x, y, id);
       return;
     }
     const button = padAt(this.pads, x, y, held.seat)?.index ?? held.button;
@@ -143,7 +140,7 @@ export class MiniGameScene implements Scene {
     this.mg.render(r);
     drawPadButtons(r, this.pads, this.players, this.controls, this.t, {
       canPress: this.mg.canPress?.bind(this.mg),
-      style: this.entry.padStyle,
+      style: (seat, index, layout) => this.mg.padStyle?.(seat, index) ?? this.entry.padStyle?.(seat, index, layout) ?? null,
     });
   }
 }

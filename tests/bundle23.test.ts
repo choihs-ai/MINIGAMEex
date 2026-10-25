@@ -4,11 +4,8 @@ import { BTN_DOWN, BTN_LEFT, BTN_RIGHT, BTN_UP } from '../src/input/controls';
 import type { Seat } from '../src/input/seats';
 import { G03, HIT_HALF_W, type BombDodge } from '../src/minigames/G03';
 import { G08, roleOf, teamSeats, type TwinShip } from '../src/minigames/G08';
-import { G09, type SignalTap } from '../src/minigames/G09';
 import { G11, LOCKOUT, type MoleGrab } from '../src/minigames/G11';
-import { G13, RELEASE_GAP, type SumoPush } from '../src/minigames/G13';
-import { beats, G20, PAPER, ROCK, SCISSORS, type RpsSpeed } from '../src/minigames/G20';
-import { G21, type ColorTrap } from '../src/minigames/G21';
+import { beats, G21, PAPER, ROCK, SCISSORS, type ColorTrap } from '../src/minigames/G21';
 import { G23, type BalloonPop } from '../src/minigames/G23';
 import { G24, type Marbles } from '../src/minigames/G24';
 import { G25, HOG_X, HOUSE_X, HOUSE_Y, type IceCurling } from '../src/minigames/G25';
@@ -33,21 +30,6 @@ const touch = (h: Harness, seat: Seat, x: number, y: number) => {
 };
 const seconds = (s: number) => Math.ceil(s / STEP);
 
-describe('G09 눈치 탭', () => {
-  it('빨간불에 누르면 -1이고 그 라운드는 더 못 누른다, 초록불에 먼저 누르면 +1', () => {
-    const h = harness<SignalTap>(G09, [0, 1]);
-    tap(h, 0);
-    expect(h.game.scores.get(0)).toBe(-1);
-    expect(h.game.fouled.has(0)).toBe(true);
-    while (h.game.light !== 'green') h.step();
-    tap(h, 0);
-    expect(h.game.scores.get(0)).toBe(-1);
-    tap(h, 1);
-    expect(h.game.scores.get(1)).toBe(1);
-    expect(h.game.light).toBe('off');
-  });
-});
-
 describe('G11 두더지', () => {
   it('빈 구멍을 치면 잠깐 못 치고, 황금은 +3·폭탄은 -2', () => {
     const h = harness<MoleGrab>(G11, [0, 1]);
@@ -66,15 +48,15 @@ describe('G11 두더지', () => {
   });
 });
 
-describe('G20 가위바위보 / G21 색깔 함정', () => {
+describe('G21 색깔·손 함정', () => {
   it('가위←바위←보←가위 순으로 이긴다', () => {
     expect([beats(SCISSORS), beats(ROCK), beats(PAPER)]).toEqual([ROCK, PAPER, SCISSORS]);
   });
 
   it('맞히면 +1, 틀리면 -1이고 그 문제는 더 못 누른다', () => {
-    const h = harness<RpsSpeed>(G20, [0, 1, 2]);
+    const h = harness<ColorTrap>(G21, [0, 1, 2]);
     while (h.game.phase !== 'ask') h.step();
-    const wrong = (h.game.answer + 1) % 3;
+    const wrong = (h.game.answer + 1) % 4;
     tap(h, 0, wrong);
     expect(h.game.scores.get(0)).toBe(-1);
     tap(h, 0, h.game.answer);
@@ -197,23 +179,6 @@ describe('G03 폭탄 피하기', () => {
     h.controls.get(0)!.press(BTN_RIGHT);
     h.step(10);
     expect(d.x).toBeLessThan(x0);
-  });
-});
-
-describe('G13 스모', () => {
-  it('연타로 힘을 모으고 멈추면 가장 가까운 상대에게 돌진한다', () => {
-    const h = harness<SumoPush>(G13, [0, 1]);
-    const me = h.game.wrestlers.find((w) => w.seat === 0)!;
-    for (let i = 0; i < 6; i++) {
-      tap(h, 0);
-      h.step(5);
-    }
-    expect(me.charge).toBeGreaterThan(0.5);
-    h.step(seconds(RELEASE_GAP) + 1);
-    expect(me.charge).toBe(0);
-    const foe = h.game.wrestlers.find((w) => w.seat === 1)!;
-    const toward = (foe.x - me.x) * me.vx + (foe.y - me.y) * me.vy;
-    expect(toward).toBeGreaterThan(0);
   });
 });
 

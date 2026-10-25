@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STEP as TICK } from '../src/core/loop';
 import type { Seat } from '../src/input/seats';
-import { BEAT, G02, GRACE as TUG_GRACE, type RhythmTug } from '../src/minigames/G02';
-import { BLOCK_W, G14, isStable, type BlockTower } from '../src/minigames/G14';
-import { G28, type JumpRope } from '../src/minigames/G28';
 import { crossed, G30, GRACE as HOP_GRACE, wrapAngle, type LaserHop } from '../src/minigames/G30';
 import { G50, type BeatStack } from '../src/minigames/G50';
 import { CUE, G51, LISTEN, STEP as DRUM_STEP, type DrumBattle } from '../src/minigames/G51';
@@ -21,90 +18,6 @@ function tap(h: Harness, seat: Seat): void {
 function stepUntil(h: Harness, cond: () => boolean, maxSeconds = 60): void {
   for (let i = 0; i < maxSeconds / TICK && !cond(); i++) h.step();
 }
-
-describe('G02 줄다리기 리듬', () => {
-  it('박자에 맞춰 누르면 매듭이 내 쪽으로, 빗나가면(유예 뒤) 반대쪽으로', () => {
-    const h = harness<RhythmTug>(G02, [0, 1]); // 1P 아래, 2P 위
-    stepUntil(h, () => h.game.t >= BEAT - TICK / 2);
-    const y0 = h.game.knot.y;
-    tap(h, 0);
-    expect(h.game.knot.y).toBeGreaterThan(y0);
-
-    stepUntil(h, () => h.game.t >= TUG_GRACE + BEAT * 0.5);
-    const y1 = h.game.knot.y;
-    tap(h, 0);
-    expect(h.game.knot.y).toBeLessThan(y1);
-  });
-
-  it('유예 시간에는 빗나가도 안 끌려간다', () => {
-    const h = harness<RhythmTug>(G02, [0, 1]);
-    stepUntil(h, () => h.game.t >= BEAT * 1.5);
-    const y0 = h.game.knot.y;
-    tap(h, 0);
-    expect(h.game.knot.y).toBe(y0);
-  });
-
-  it('끝나면 매듭에 가까운 순', () => {
-    const h = harness<RhythmTug>(G02, [0, 1, 2]);
-    const anchor = h.game.pullers.find((p) => p.seat === 2)!;
-    h.game.knot = { x: anchor.ax, y: anchor.ay - 6 };
-    expect(h.game.getRanking()[0]).toEqual([2]);
-  });
-});
-
-describe('G14 블록 탑 쌓기', () => {
-  it('무게중심이 모든 층에서 아랫블록 위에 있어야 버틴다', () => {
-    expect(isStable([0, 5, 8])).toBe(true);
-    expect(isStable([0, 10, 20])).toBe(false);
-  });
-
-  it('첫 블록은 어디에 떨어뜨려도 선다', () => {
-    const h = harness<BlockTower>(G14, [0, 1]);
-    tap(h, 0);
-    stepUntil(h, () => h.game.towers[0].state === 'wait', 3);
-    expect(h.game.towers[0].blocks).toHaveLength(1);
-  });
-
-  it('너무 어긋나게 떨어뜨리면 무너져 탈락하고, 미끄러진 블록은 높이에 안 들어간다', () => {
-    const h = harness<BlockTower>(G14, [0, 1, 2]);
-    const tw = h.game.towers[0];
-    tw.blocks = [tw.lane.cx];
-    tw.state = 'fall';
-    tw.x = tw.lane.cx + BLOCK_W * 0.7;
-    tw.y = 9;
-    h.step();
-    expect(tw.state).toBe('down');
-    expect(tw.outAt).not.toBeNull();
-    expect(tw.blocks).toHaveLength(1);
-  });
-
-  it('살아남은 사람이 무너진 사람보다 위(높이가 낮아도)', () => {
-    const h = harness<BlockTower>(G14, [0, 1]);
-    const [a, b] = h.game.towers;
-    a.blocks = [100, 100];
-    b.blocks = [200, 200, 200, 200, 200];
-    b.outAt = 3;
-    expect(h.game.getRanking()).toEqual([[a.seat], [b.seat]]);
-  });
-});
-
-describe('G28 줄넘기 생존', () => {
-  it('첫 줄은 걸려도 비틀거리기만, 그다음부터 안 뛰면 탈락하고 뛰면 산다', () => {
-    const h = harness<JumpRope>(G28, [0, 1, 2]);
-    stepUntil(h, () => h.game.passes >= 1, 5);
-    expect(h.game.jumpers.every((j) => j.outAt === null)).toBe(true);
-    // 2번째 줄: 0·2번은 0.2초 전에 뛰고 1번은 가만히
-    stepUntil(h, () => h.game.timeToNextPass() <= 0.2, 5);
-    h.controls.get(0)!.press();
-    h.controls.get(2)!.press();
-    h.step();
-    h.controls.get(0)!.release();
-    h.controls.get(2)!.release();
-    stepUntil(h, () => h.game.passes >= 2, 3);
-    const out = h.game.jumpers.filter((j) => j.outAt !== null).map((j) => j.seat);
-    expect(out).toEqual([1]);
-  });
-});
 
 describe('G30 회전판 점프', () => {
   it('각도 도우미', () => {
