@@ -3,9 +3,10 @@ import type { PadButton } from '../input/padButtons';
 import type { Seat } from '../input/seats';
 import { PAL, type Color } from '../render/palette';
 import type { Renderer } from '../render/renderer';
-import { drawArcadeButton } from '../ui/arcadeButton';
+import { drawArcadeButton, type PadArrow } from '../ui/arcadeButton';
 import { DIGIT_SMALL, drawNumber } from '../ui/bigText';
-import type { PlayerInfo } from './types';
+import { homeDir } from './players';
+import type { PadStyle, PlayerInfo } from './types';
 
 /** 말 위에 띄우는 작은 진영 표식(▼). (x, y)는 꼭짓점(아래 끝). */
 export function drawMarker(r: Renderer, x: number, y: number, color: Color): void {
@@ -58,24 +59,40 @@ export function drawLine(r: Renderer, x0: number, y0: number, x1: number, y1: nu
   }
 }
 
-/** 사람 플레이어의 가장자리 큰 버튼. 누르면 눌리고, canPress면 테두리가 깜빡인다. */
+/** 사람 플레이어의 가장자리 큰 버튼. 누르면 눌리고, canPress면 테두리가 깜빡인다. style로 색·그림을 바꿀 수 있다. */
 export function drawPadButtons(
   r: Renderer,
   buttons: readonly PadButton[],
   players: readonly PlayerInfo[],
   controls: ReadonlyMap<Seat, PlayerControls> | null,
-  layout: ControlLayout,
   time: number,
-  canPress?: (seat: Seat) => boolean,
+  opts: {
+    canPress?: (seat: Seat) => boolean;
+    style?: (seat: Seat, index: number, layout: ControlLayout) => PadStyle | null;
+  } = {},
 ): void {
   const blink = Math.floor(time * 6) % 2 === 0;
   for (const b of buttons) {
     const p = players.find((pl) => pl.seat === b.seat);
     if (!p) continue;
     const pressed = controls?.get(b.seat)?.isDown(b.index) ?? false;
-    const glow = blink && (canPress?.(b.seat) ?? false);
-    drawArcadeButton(r, b, p.color, { pressed, glow, arrow: layout === 'leftRight' ? (b.index === 0 ? -1 : 1) : undefined });
+    const glow = blink && (opts.canPress?.(b.seat) ?? false);
+    const style = opts.style?.(b.seat, b.index, b.layout) ?? null;
+    drawArcadeButton(r, b, style?.color ?? p.color, {
+      pressed,
+      glow,
+      radius: b.r,
+      arrow: style?.icon ? undefined : padArrow(b),
+      icon: style?.icon,
+    });
   }
+}
+
+/** 좌우 버튼은 그 사람 기준 ◀▶, 위/아래 버튼은 화면 기준 ▲▼ */
+function padArrow(b: PadButton): PadArrow | undefined {
+  if (b.layout === 'leftRight') return b.index === 0 ? 'left' : 'right';
+  if (b.layout === 'upDown') return b.index === 0 ? 'up' : 'down';
+  return undefined;
 }
 
 /** 원 둘레만 1px로(중점 원 알고리즘) */
@@ -133,4 +150,32 @@ export function jumpHeight(jumpT: number | null, duration: number, peak: number)
   if (jumpT === null) return 0;
   const s = Math.min(1, Math.max(0, jumpT / duration));
   return 4 * peak * s * (1 - s);
+}
+
+/** 이 플레이어 쪽(자기 구역 가운데쯤)의 기준점. 모서리 버튼을 피한다. 2인은 위/아래 가운데. */
+export function anchorOf(p: PlayerInfo, humanCount: number, dx = 80, dy = 45): { x: number; y: number } {
+  const d = homeDir(p, humanCount);
+  return { x: 160 + d.x * dx, y: 90 + d.y * dy };
+}
+
+/** fn에서 그리는 것을 위쪽에 앉은 사람이면 (cx, cy)를 중심으로 180도 돌려 그린다 */
+export function facing(r: Renderer, p: Pick<PlayerInfo, 'flipped'>, cx: number, cy: number, fn: () => void): void {
+  if (p.flipped) r.rotated180(Math.round(cx), Math.round(cy), 0, 0, fn);
+  else fn();
+}
+
+/** 진영 표식(▼) + 점수. (x, y)는 숫자 가운데 위쪽. 위쪽 사람은 돌려서 그린다. */
+export function drawScoreTag(r: Renderer, p: PlayerInfo, x: number, y: number, score: number | string): void {
+  facing(r, p, x, y + 4, () => {
+    const text = String(score);
+    const w = r.textWidth(text) + 4;
+    r.rect(x - Math.ceil(w / 2), y - 1, w, 10, PAL.line);
+    r.text(text, x, y, p.color.base, 'center');
+    drawMarker(r, x, y - 3, p.color.base);
+  });
+}
+
+/** 기준점 a에서 "그 사람 기준"으로 오른쪽 ox, 아래 oy만큼 떨어진 화면 위치(위쪽 사람은 반대로) */
+export function localOffset(p: Pick<PlayerInfo, 'flipped'>, a: { x: number; y: number }, ox: number, oy: number): { x: number; y: number } {
+  return p.flipped ? { x: a.x - ox, y: a.y - oy } : { x: a.x + ox, y: a.y + oy };
 }

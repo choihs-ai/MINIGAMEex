@@ -1,4 +1,4 @@
-import type { PixelFont } from './font';
+import { FONT_PAD, type PixelFont } from './font';
 import type { Color } from './palette';
 import type { Screen } from './screen';
 
@@ -74,6 +74,16 @@ export class Renderer {
       left = align === 'center' ? x - Math.floor(w / 2) : x - w;
     }
     this.font.draw(this.ctx, str, left, y, color);
+  }
+
+  /** 픽셀 글자를 정수배로 키워 찍는다(scale 2면 16px 글자). (x, y)는 정렬 기준점의 위쪽 */
+  textScaled(str: string, x: number, y: number, color: Color, scale: number, align: TextAlign = 'left'): void {
+    if (!str) return;
+    const w = this.font.measure(str) * scale;
+    const left = align === 'left' ? x : align === 'center' ? x - Math.floor(w / 2) : x - w;
+    const bmp = this.font.bitmap(str, color);
+    const pad = FONT_PAD * scale;
+    this.ctx.drawImage(bmp, Math.round(left) - pad, Math.round(y) - pad, bmp.width * scale, bmp.height * scale);
   }
 
   textWidth(str: string): number {

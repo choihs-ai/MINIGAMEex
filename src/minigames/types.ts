@@ -66,6 +66,8 @@ export interface MiniGame {
   getScores?(): Partial<Record<Seat, number>>;
   /** 지금 이 플레이어가 누르면 되는 순간인가(버튼을 빛나게 한다) */
   canPress?(seat: Seat): boolean;
+  /** 차례제 게임(pointer: 'turn')에서 지금 화면을 만질 차례인 사람. 아무도 아니면 null */
+  activeSeat?(): Seat | null;
 }
 
 export interface AiController {
@@ -73,22 +75,47 @@ export interface AiController {
   think(dt: number): void;
 }
 
+/** 조작 배치: 게임 전체가 하나, 또는 참가자 구성(seats)에 따라 사람마다 다르게(예: G08 조종·사격) */
+export type ControlsSpec = ControlLayout | ((seat: Seat, seats: readonly Seat[]) => ControlLayout);
+
+/** 큰 버튼 하나의 모양을 게임이 바꿀 때(색 버튼, 가위·바위·보 그림 등) */
+export interface PadStyle {
+  color?: SeatColor;
+  /** 버튼 가운데 새길 그림. 위쪽 사람 버튼이면 180도 돌려 그린다. */
+  icon?: HTMLCanvasElement;
+}
+
 export interface MiniGameEntry {
   code: string;
-  controls: ControlLayout;
+  controls: ControlsSpec;
+  /**
+   * 화면을 직접 만지는(pointer) 사람의 터치를 누구 것으로 볼지.
+   * area: 자기 구역에서 시작한 터치(기본) / turn: 화면 어디든, 지금 차례인 사람(activeSeat)
+   */
+  pointer?: 'area' | 'turn';
+  padStyle?(seat: Seat, index: number, layout: ControlLayout): PadStyle | null;
   create(): { game: MiniGame; createAI(player: PlayerInfo, controls: PlayerControls): AiController };
+}
+
+/** 이 판의 참가 자리(seats)에서 seat의 조작 배치 */
+export function controlLayout(entry: Pick<MiniGameEntry, 'controls'>, seat: Seat, seats: readonly Seat[]): ControlLayout {
+  return typeof entry.controls === 'function' ? entry.controls(seat, seats) : entry.controls;
 }
 
 /** 미니게임 등록용. AI 생성 함수가 자기 게임의 상태를 타입 그대로 볼 수 있게 묶어 준다. */
 export function defineGame<G extends MiniGame>(spec: {
   code: string;
-  controls: ControlLayout;
+  controls: ControlsSpec;
+  pointer?: 'area' | 'turn';
+  padStyle?(seat: Seat, index: number, layout: ControlLayout): PadStyle | null;
   create(): G;
   createAI(game: G, player: PlayerInfo, controls: PlayerControls): AiController;
 }): MiniGameEntry {
   return {
     code: spec.code,
     controls: spec.controls,
+    pointer: spec.pointer,
+    padStyle: spec.padStyle,
     create: () => {
       const game = spec.create();
       return { game, createAI: (player, controls) => spec.createAI(game, player, controls) };

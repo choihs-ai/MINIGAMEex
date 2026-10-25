@@ -3,7 +3,7 @@ import { createRng } from '../src/core/rng';
 import { BUTTON_COUNT, PlayerControls } from '../src/input/controls';
 import { layoutPlayers, type Seat } from '../src/input/seats';
 import { buildPlayers } from '../src/minigames/players';
-import type { FxApi, GameContext, MiniGame, MiniGameEntry, PlayerInfo, SfxApi } from '../src/minigames/types';
+import { controlLayout, type FxApi, type GameContext, type MiniGame, type MiniGameEntry, type PlayerInfo, type SfxApi } from '../src/minigames/types';
 
 /** 소리·효과는 아무것도 안 하는 대역 */
 export const noop = new Proxy({}, { get: () => () => {} }) as unknown as FxApi & SfxApi;
@@ -27,7 +27,10 @@ export function harness<G extends MiniGame>(
   { seed = 1, withAI = false }: { seed?: number; withAI?: boolean } = {},
 ): Harness<G> {
   const players = buildPlayers(layoutPlayers(joined), 'normal').map((p) => ({ ...p, isAI: withAI || p.isAI }));
-  const controls = new Map(players.map((p) => [p.seat, new PlayerControls(BUTTON_COUNT[entry.controls])]));
+  const seats = players.map((p) => p.seat);
+  const controls = new Map(
+    players.map((p) => [p.seat, new PlayerControls(BUTTON_COUNT[controlLayout(entry, p.seat, seats)])]),
+  );
   const { game, createAI } = entry.create();
   const ctx: GameContext = { players, controls, humanCount: joined.length, rng: createRng(seed), fx: noop, sfx: noop };
   game.setup(ctx);

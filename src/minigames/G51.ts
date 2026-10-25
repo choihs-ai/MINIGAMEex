@@ -8,7 +8,7 @@ import { drawLine } from './common';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G51 드럼 배틀: 북이 리듬을 한 번 치면(듣기), 같은 리듬을 자기 버튼(패드)으로 따라 친다(따라 치기).
-// 5라운드, 라운드마다 박자가 늘어난다. 정확도 순(맞힌 박자 − 헛친 수의 절반, 전체 박자 대비 %).
+// 5라운드, 라운드마다 박자가 늘어난다. 정확도 순: (맞힌 박자 − 헛친 수 × 2) ÷ 전체 박자. 안 친 박자는 감점 없음.
 
 export const ROUNDS = 5;
 /** 한 칸(8분음표) 길이 */
@@ -19,6 +19,8 @@ export const CUE = 0.6;
 export const PLAY = STEP * STEPS;
 const RESULT = 0.8;
 export const WINDOW = 0.11;
+/** 박자가 없는 때 친 한 번당 감점 */
+export const EXTRA_PENALTY = 2;
 export const ROUND_TIME = LISTEN + CUE + PLAY + RESULT;
 
 export type DrumPhase = 'listen' | 'cue' | 'play' | 'result';
@@ -105,9 +107,14 @@ export class DrumBattle implements MiniGame {
     return this.patterns.reduce((n, p) => n + p.length, 0);
   }
 
-  accuracy(seat: Seat): number {
+  /** 맞힌 박자 − 헛친 수 × 2 */
+  points(seat: Seat): number {
     const d = this.drummers.find((x) => x.seat === seat)!;
-    return Math.max(0, Math.round((100 * (d.hits - d.extras * 0.5)) / this.totalNotes()));
+    return d.hits - d.extras * EXTRA_PENALTY;
+  }
+
+  accuracy(seat: Seat): number {
+    return Math.max(0, Math.round((100 * this.points(seat)) / this.totalNotes()));
   }
 
   getScores(): Partial<Record<Seat, number>> {
@@ -228,8 +235,8 @@ export class DrumBattle implements MiniGame {
         r.rect(x, y + 1, 4, 4, d.hitSteps.has(s) ? p.color.base : PAL.bgMid);
       }
       const recent = this.t - d.lastExtraAt < 0.25 ? PAL.red : this.t - d.lastHitAt < 0.25 ? PAL.yellow : PAL.text;
-      // 진행 중에는 지금까지 맞힌 수 / 지금까지 나온 박자 수(최종 순위는 전체 대비 %)
-      r.text(`${d.hits}/${this.notesSoFar()}`, x0 + STEPS * (cell + gap) + 4, y - 1, recent);
+      // 진행 중에는 점수(맞힘 − 헛침×2) / 지금까지 나온 박자 수(최종 순위는 전체 대비 %)
+      r.text(`${this.points(d.seat)}/${this.notesSoFar()}`, x0 + STEPS * (cell + gap) + 4, y - 1, recent);
     });
   }
 }

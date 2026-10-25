@@ -7,7 +7,7 @@ import { playArcade } from '../modes/arcade';
 import { PAL, SEAT_COLORS } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { CHAR_SIZE, drawCharacter } from '../ui/characters';
-import { drawGameTile, tileRect } from '../ui/gameGrid';
+import { drawGameTile, ScrollGrid } from '../ui/gameGrid';
 import { drawUiButton } from '../ui/uiButton';
 import { TournamentSetupScene } from './tournamentSetup';
 
@@ -15,9 +15,9 @@ const COUNTS = [1, 2, 3, 4] as const;
 const TAB_W = 40;
 const TAB_H = 16;
 const TAB_Y = 5;
-const GRID_Y = 68;
 const TAB_ID = 100;
 const TOURNAMENT_ID = 200;
+const GRID_ID = 300;
 const TOURNAMENT_BTN: Rect = { x: 110, y: 156, w: 100, h: 17 };
 
 const tabRect = (i: number): Rect => ({ x: 160 + (i - 1.5) * (TAB_W + 6) - TAB_W / 2, y: TAB_Y, w: TAB_W, h: TAB_H });
@@ -31,12 +31,14 @@ export class MenuScene implements Scene {
   /** 누르고 있는 아이콘·버튼(뗄 때 실행해 스치는 실수를 막는다) */
   private pressed = -1;
   private leaving = false;
+  /** 게임 아이콘 격자(위아래로 끌어 넘긴다) */
+  private readonly grid = new ScrollGrid({ x: 0, y: 62, w: 320, h: 90 }, () => READY_GAMES.length, GRID_ID);
 
   constructor(private readonly game: Game) {}
 
   enter(): void {
     const zones: Zone[] = COUNTS.map((_, i) => rectZone(TAB_ID + i, tabRect(i)));
-    READY_GAMES.forEach((_, i) => zones.push(rectZone(i, tileRect(i, GRID_Y))));
+    zones.push(this.grid.zone());
     zones.push(rectZone(TOURNAMENT_ID, TOURNAMENT_BTN));
     this.game.input.setZones(zones);
   }
@@ -51,6 +53,18 @@ export class MenuScene implements Scene {
     for (const e of input.tracker.drain()) {
       if (this.leaving) break;
       const zone = e.touch.zone;
+      if (zone === GRID_ID) {
+        if (e.type === 'down') {
+          audio.unlock();
+          this.grid.down(e.touch);
+          if (this.grid.pressed >= 0) audio.click();
+        } else if (e.type === 'move') this.grid.move(e.touch);
+        else {
+          const picked = this.grid.up(e.touch);
+          if (picked >= 0) this.openGame(picked);
+        }
+        continue;
+      }
       if (e.type === 'down') {
         audio.unlock();
         if (zone >= TAB_ID && zone < TOURNAMENT_ID) {
@@ -70,18 +84,25 @@ export class MenuScene implements Scene {
     }
   }
 
-  private open(zone: number): void {
-    const { session, audio, scenes } = this.game;
+  /** 고른 인원으로 자리를 정한다 */
+  private seatPlayers(): void {
+    const { session } = this.game;
     this.leaving = true;
     const joined = ([0, 1, 2, 3] as Seat[]).slice(0, session.playerCount);
     session.joined = joined;
     session.players = layoutPlayers(joined);
-    if (zone === TOURNAMENT_ID) {
-      scenes.goto(new TournamentSetupScene(this.game));
-      return;
-    }
-    audio.coin();
-    scenes.goto(playArcade(this.game, READY_GAMES[zone]));
+  }
+
+  private open(zone: number): void {
+    if (zone !== TOURNAMENT_ID) return;
+    this.seatPlayers();
+    this.game.scenes.goto(new TournamentSetupScene(this.game));
+  }
+
+  private openGame(index: number): void {
+    this.seatPlayers();
+    this.game.audio.coin();
+    this.game.scenes.goto(playArcade(this.game, READY_GAMES[index]));
   }
 
   render(r: Renderer): void {
@@ -104,7 +125,7 @@ export class MenuScene implements Scene {
       r.text(cpu ? 'CPU' : `${seat + 1}P`, x + CHAR_SIZE / 2, 53, cpu ? SEAT_COLORS[seat].shadow : SEAT_COLORS[seat].base, 'center');
     }
 
-    READY_GAMES.forEach((code, i) => drawGameTile(r, tileRect(i, GRID_Y), code, { pressed: this.pressed === i }));
+    this.grid.render(r, (i, rect, pressed) => drawGameTile(r, rect, READY_GAMES[i], { pressed }));
 
     drawUiButton(r, TOURNAMENT_BTN, this.tournamentOk ? '토너먼트' : '토너먼트(2인 이상)', {
       primary: this.tournamentOk,

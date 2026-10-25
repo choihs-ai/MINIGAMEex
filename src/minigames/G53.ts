@@ -8,14 +8,15 @@ import { drawLaneDividers, drawLine, drawMarker, drawTimer, makeLanes, TIMER_X, 
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G53 낚시 대결: 찌가 쑥 들어가는 순간 눌러 낚아챈다. 큰 고기는 걸린 뒤 연타로 끌어올린다.
-// 입질 전에 누르면 고기가 놀라 도망간다. 잡은 무게 합 순.
+// 입질 전에 누르면 고기가 놀라 도망가 1.3초 손해. 잡은 무게 합 순.
 
 export const DURATION = 30;
 export const BITE = 0.75;
 export const REEL_TIME = 3;
 const WAIT_MIN = 1.4;
 const WAIT_MAX = 4.2;
-const SCARE = 1;
+/** 입질 전에 잘못 누르면 이만큼 손해(고기가 놀라 다시 기다림) */
+const SCARE = 1.3;
 const SHOW = 0.7;
 const WATER_Y = 100;
 const SMALL_CHANCE = 0.62;

@@ -5,16 +5,16 @@ import { rectZone, type Zone } from '../input/touch';
 import { Tournament, tournamentPool } from '../modes/tournament';
 import { PAL } from '../render/palette';
 import type { Renderer } from '../render/renderer';
-import { drawGameTile, tileRect, type TileMark } from '../ui/gameGrid';
+import { drawGameTile, ScrollGrid, type TileMark } from '../ui/gameGrid';
 import { drawUiButton } from '../ui/uiButton';
 import { MenuScene } from './menu';
 
 export const ROUND_OPTIONS = [3, 5, 7, 10] as const;
-const GRID_Y = 60;
 const ROUND_ID = 100;
 const RANDOM_ID = 200;
 const BACK_ID = 201;
 const START_ID = 202;
+const GRID_ID = 300;
 
 const roundRect = (i: number): Rect => ({ x: 62 + i * 34, y: 22, w: 30, h: 15 });
 const RANDOM_BTN: Rect = { x: 6, y: 156, w: 70, h: 17 };
@@ -29,9 +29,11 @@ export class TournamentSetupScene implements Scene {
   private pressed = -1;
   private leaving = false;
   private readonly codes: string[];
+  private readonly grid: ScrollGrid;
 
   constructor(private readonly game: Game) {
     this.codes = tournamentPool(game.session.deniedGames).map((g) => g.code);
+    this.grid = new ScrollGrid({ x: 0, y: 55, w: 320, h: 82 }, () => this.codes.length, GRID_ID);
   }
 
   private get settings() {
@@ -40,7 +42,7 @@ export class TournamentSetupScene implements Scene {
 
   enter(): void {
     const zones: Zone[] = ROUND_OPTIONS.map((_, i) => rectZone(ROUND_ID + i, roundRect(i)));
-    this.codes.forEach((_, i) => zones.push(rectZone(i, tileRect(i, GRID_Y))));
+    zones.push(this.grid.zone());
     zones.push(rectZone(RANDOM_ID, RANDOM_BTN), rectZone(BACK_ID, BACK_BTN), rectZone(START_ID, START_BTN));
     this.game.input.setZones(zones);
   }
@@ -60,10 +62,19 @@ export class TournamentSetupScene implements Scene {
     for (const e of input.tracker.drain()) {
       if (this.leaving) break;
       const zone = e.touch.zone;
+      if (zone === GRID_ID) {
+        // 아이콘은 짧게 눌렀다 뗄 때 바뀐다(끌어 넘기는 중에는 안 바뀐다)
+        if (e.type === 'down') this.grid.down(e.touch);
+        else if (e.type === 'move') this.grid.move(e.touch);
+        else {
+          const picked = this.grid.up(e.touch);
+          if (picked >= 0) this.cycle(this.codes[picked]);
+        }
+        continue;
+      }
       if (e.type === 'down') {
         this.pressed = zone;
         if (zone >= ROUND_ID && zone < RANDOM_ID) this.setRounds(ROUND_OPTIONS[zone - ROUND_ID]);
-        else if (zone < ROUND_ID) this.cycle(this.codes[zone]);
         else audio.click();
       } else if (e.type === 'up') {
         if (zone === this.pressed) this.button(zone);
@@ -135,9 +146,7 @@ export class TournamentSetupScene implements Scene {
     );
 
     r.text('누를 때마다  랜덤 → 확정 → 밴', 6, 45, PAL.text);
-    this.codes.forEach((code, i) =>
-      drawGameTile(r, tileRect(i, GRID_Y), code, { pressed: this.pressed === i, mark: this.mark(code) }),
-    );
+    this.grid.render(r, (i, rect, pressed) => drawGameTile(r, rect, this.codes[i], { pressed, mark: this.mark(this.codes[i]) }));
 
     const random = this.codes.length - s.fixed.length - s.banned.length;
     r.text(`확정 ${s.fixed.length}  밴 ${s.banned.length}  랜덤 ${random}`, 6, 140, PAL.text);

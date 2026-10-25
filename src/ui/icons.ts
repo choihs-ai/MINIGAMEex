@@ -119,6 +119,134 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(9, 12, 3, 1, PAL.text);
     for (let x = 0; x < 16; x += 4) g.rect(x, 14, 2, 1, PAL.blue);
   },
+  // 폭탄과 불붙은 심지
+  G03: (g) => {
+    g.ellipse(7, 10, 5.5, 5.5, PAL.bgMid, PAL.line);
+    g.rect(6, 3, 3, 2, PAL.bgMid);
+    g.line(8, 2, 11, 0, PAL.yellowShadow);
+    g.rect(12, 0, 2, 2, PAL.yellow);
+    g.rect(4, 7, 2, 2, PAL.text);
+  },
+  // 옆에서 본 우주선
+  G08: (g) => {
+    g.rect(2, 7, 11, 3, PAL.red);
+    g.rect(3, 10, 9, 1, PAL.redShadow);
+    g.rect(13, 8, 2, 1, PAL.red);
+    g.rect(7, 5, 4, 2, PAL.text);
+    g.rect(3, 4, 3, 3, PAL.red);
+    g.rect(3, 11, 3, 2, PAL.redShadow);
+    g.rect(0, 7, 2, 1, PAL.yellow);
+    g.rect(0, 9, 2, 1, PAL.yellow);
+    g.rect(13, 12, 2, 1, PAL.blue);
+  },
+  // 세로 신호등(초록불)
+  G09: (g) => {
+    g.rect(4, 0, 8, 16, PAL.bgMid);
+    g.ellipse(8, 3, 2.5, 2.5, PAL.redShadow);
+    g.ellipse(8, 8, 2.5, 2.5, PAL.yellowShadow);
+    g.ellipse(8, 13, 2.5, 2.5, PAL.green);
+  },
+  // 구멍에서 나온 두더지
+  G11: (g) => {
+    g.ellipse(8, 8, 5.5, 6.5, PAL.redShadow, PAL.line);
+    g.ellipse(8, 8, 2.5, 1.5, PAL.text);
+    g.rect(7, 6, 2, 1, PAL.red);
+    g.rect(5, 4, 1, 2, PAL.line);
+    g.rect(10, 4, 1, 2, PAL.line);
+    g.rect(1, 13, 14, 3, PAL.greenShadow);
+  },
+  // 씨름판과 두 선수
+  G13: (g) => {
+    g.ellipse(8, 8, 7.5, 7.5, PAL.text);
+    g.ellipse(8, 8, 6.5, 6.5, PAL.yellowShadow);
+    g.ellipse(5.5, 8, 2.5, 2.5, PAL.red, PAL.redShadow);
+    g.ellipse(10.5, 8, 2.5, 2.5, PAL.blue, PAL.blueShadow);
+  },
+  // 가위 모양 손
+  G20: (g) => {
+    g.rect(4, 1, 2, 5, PAL.text);
+    g.rect(10, 1, 2, 5, PAL.text);
+    g.rect(5, 5, 2, 2, PAL.text);
+    g.rect(9, 5, 2, 2, PAL.text);
+    g.rect(4, 7, 8, 6, PAL.text);
+    g.rect(5, 9, 6, 1, PAL.yellowShadow);
+    g.rect(2, 9, 2, 3, PAL.text);
+    g.rect(5, 13, 6, 3, PAL.text);
+  },
+  // 네 가지 색 칸
+  G21: (g) => {
+    g.rect(1, 1, 7, 7, PAL.red);
+    g.rect(8, 1, 7, 7, PAL.blue);
+    g.rect(1, 8, 7, 7, PAL.yellow);
+    g.rect(8, 8, 7, 7, PAL.green);
+    g.rect(5, 5, 6, 6, PAL.line);
+    g.rect(6, 6, 4, 4, PAL.text);
+  },
+  // 풍선 두 개
+  G23: (g) => {
+    g.ellipse(5.5, 5.5, 4, 4.5, PAL.red, PAL.redShadow);
+    g.ellipse(11, 7, 3.5, 4, PAL.blue, PAL.blueShadow);
+    g.line(5, 10, 7, 15, PAL.bgMid);
+    g.line(11, 11, 9, 15, PAL.bgMid);
+    g.rect(4, 3, 1, 1, PAL.text);
+  },
+  // 구슬 셋
+  G24: (g) => {
+    g.ellipse(5, 10, 3.5, 3.5, PAL.red, PAL.redShadow);
+    g.ellipse(11, 11, 3.5, 3.5, PAL.green, PAL.greenShadow);
+    g.ellipse(9, 4, 3.5, 3.5, PAL.blue, PAL.blueShadow);
+    g.rect(4, 9, 1, 1, PAL.text);
+    g.rect(8, 3, 1, 1, PAL.text);
+  },
+  // 컬링 돌
+  G25: (g) => {
+    g.ellipse(8, 10, 7, 4.5, PAL.bgMid, PAL.line);
+    g.ellipse(8, 9, 4, 2.5, PAL.yellow, PAL.yellowShadow);
+    g.rect(7, 4, 2, 4, PAL.yellow);
+    g.rect(7, 3, 6, 2, PAL.yellow);
+  },
+  // 꺾여 가는 뱀 꼬리
+  G26: (g) => {
+    g.rect(1, 13, 8, 2, PAL.greenShadow);
+    g.rect(7, 6, 2, 8, PAL.greenShadow);
+    g.rect(7, 5, 7, 2, PAL.green);
+    g.rect(12, 1, 2, 5, PAL.green);
+    g.rect(11, 0, 4, 2, PAL.green);
+    g.rect(12, 0, 1, 1, PAL.line);
+  },
+  // 위에서 본 탱크
+  G27: (g) => {
+    g.rect(2, 3, 12, 2, PAL.bgMid);
+    g.rect(2, 11, 12, 2, PAL.bgMid);
+    g.rect(3, 5, 10, 6, PAL.green);
+    g.rect(3, 9, 10, 2, PAL.greenShadow);
+    g.ellipse(7, 8, 2.5, 2.5, PAL.greenShadow);
+    g.rect(8, 7, 8, 2, PAL.text);
+  },
+  // 체크무늬 깃발
+  G29: (g) => {
+    g.rect(2, 1, 1, 15, PAL.bgMid);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 5; x++) g.rect(3 + x * 2, 1 + y * 2, 2, 2, (x + y) % 2 === 0 ? PAL.text : PAL.line);
+  },
+  // 쇼핑 봉투
+  G54: (g) => {
+    g.rect(2, 5, 12, 10, PAL.yellow);
+    g.rect(2, 13, 12, 2, PAL.yellowShadow);
+    g.rect(5, 1, 1, 5, PAL.bgMid);
+    g.rect(10, 1, 1, 5, PAL.bgMid);
+    g.rect(5, 1, 6, 1, PAL.bgMid);
+    g.rect(4, 3, 3, 3, PAL.red);
+    g.rect(9, 2, 3, 4, PAL.green);
+  },
+  // 좀비 손
+  G57: (g) => {
+    g.rect(4, 6, 8, 7, PAL.green);
+    g.rect(4, 11, 8, 2, PAL.greenShadow);
+    for (const x of [4, 6, 8, 10]) g.rect(x, x === 4 || x === 10 ? 3 : 1, 2, 5, PAL.green);
+    g.rect(1, 8, 3, 2, PAL.green);
+    g.rect(5, 13, 6, 3, PAL.bgMid);
+    g.rect(7, 8, 1, 1, PAL.redShadow);
+  },
 };
 
 const cache = new Map<string, HTMLCanvasElement>();

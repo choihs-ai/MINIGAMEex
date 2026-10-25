@@ -1,13 +1,14 @@
 import type { Game } from '../core/game';
 import type { Scene } from '../core/scene';
-import { PAL } from '../render/palette';
+import { PAL, SEAT_COLORS } from '../render/palette';
 import type { Renderer } from '../render/renderer';
 import { DIGIT_BIG, drawNumber, drawWord, WORD_HEIGHT } from '../ui/bigText';
 import { padButtons } from '../input/padButtons';
-import type { PlayerSlot } from '../input/seats';
+import type { PlayerSlot, Seat } from '../input/seats';
 import { drawPadButtons } from '../minigames/common';
 import { buildPlayers } from '../minigames/players';
 import { GAMES } from '../minigames/registry';
+import { controlLayout } from '../minigames/types';
 import { gameIcon, ICON_SIZE } from '../ui/icons';
 
 const STEP_TIME = 0.8;
@@ -51,9 +52,18 @@ export class CountdownScene implements Scene {
     r.clear(PAL.bgDark);
     const { session } = this.game;
     const humans = this.slots ?? session.players;
-    // 각자 누를 버튼을 미리 보여준다
-    const layout = GAMES[this.code].controls;
-    drawPadButtons(r, padButtons(humans, layout), buildPlayers(humans, session.difficulty), null, layout, this.t);
+    // 각자 누를 버튼을 미리 보여준다. 화면을 직접 만지는 게임은 자기 구역을 테두리로 알려 준다.
+    const entry = GAMES[this.code];
+    const players = buildPlayers(humans, session.difficulty);
+    const seats = players.map((p) => p.seat);
+    const layoutOf = (seat: Seat) => controlLayout(entry, seat, seats);
+    if (humans.length > 1 && (entry.pointer ?? 'area') === 'area') {
+      for (const h of humans) {
+        if (layoutOf(h.seat) !== 'pointer') continue;
+        r.frame(h.zone.x + 1, h.zone.y + 1, h.zone.w - 2, h.zone.h - 2, SEAT_COLORS[h.seat].base);
+      }
+    }
+    drawPadButtons(r, padButtons(humans, layoutOf), players, null, this.t, { style: entry.padStyle });
     // 게임 아이콘(이름·설명 없음): 가운데 위, 위쪽에 앉은 사람용으로 180도 돌린 것을 아래에
     const drawIcon = (y: number) => {
       const ix = 160 - ICON_SIZE / 2;

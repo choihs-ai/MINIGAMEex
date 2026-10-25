@@ -9,10 +9,10 @@ import { homeDir } from './players';
 import { defineGame, type AiController, type GameContext, type MiniGame, type PlayerInfo } from './types';
 
 // G30 회전판 점프: 가운데에서 도는 레이저가 지나갈 때 눌러서(점프) 넘는다. 걸리면 탈락. 탈락 역순.
-// 점점 빨라지고, 가끔 도는 방향이 바뀐다(바뀌기 직전에 레이저가 노랗게 깜빡임).
+// 점점 빨라지고, 자주 도는 방향이 바뀐다(바뀌기 직전에 레이저가 노랗게 깜빡임). 점프는 짧다.
 
 export const DURATION = 30;
-export const JUMP_TIME = 0.42;
+export const JUMP_TIME = 0.36;
 /** 처음 이 시간 동안은 걸려도 비틀거리기만 한다 */
 export const GRACE = 2;
 const JUMP_PEAK = 8;
@@ -20,7 +20,7 @@ const CX = 160;
 const CY = 90;
 const PLATFORM_R = 72;
 const RING_R = 48;
-const WARN = 0.6;
+const WARN = 0.45;
 
 export interface Hopper {
   seat: Seat;
@@ -63,7 +63,7 @@ export class LaserHop implements MiniGame {
       }
     });
     this.beam = best;
-    this.nextFlip = 8 + ctx.rng.next() * 3;
+    this.nextFlip = 5 + ctx.rng.next() * 2;
   }
 
   get rng() {
@@ -79,7 +79,7 @@ export class LaserHop implements MiniGame {
   }
 
   omega(t = this.t): number {
-    return 1.7 + 0.07 * t;
+    return 2.2 + 0.09 * t;
   }
 
   height(h: Hopper): number {
@@ -122,7 +122,7 @@ export class LaserHop implements MiniGame {
     }
     if (this.t >= this.nextFlip) {
       this.dir = this.dir === 1 ? -1 : 1;
-      this.nextFlip += 4 + this.ctx.rng.next() * 3;
+      this.nextFlip += 3 + this.ctx.rng.next() * 2;
       this.ctx.sfx.signal();
     }
     const before = this.beam;
@@ -206,7 +206,7 @@ class LaserHopAI implements AiController {
     controls: PlayerControls,
   ) {
     this.hand = new AiHand(controls);
-    this.sigma = byDifficulty(player.difficulty, { easy: 0.15, normal: 0.1, hard: 0.05 });
+    this.sigma = byDifficulty(player.difficulty, { easy: 0.13, normal: 0.085, hard: 0.045 });
   }
 
   think(dt: number): void {
@@ -222,7 +222,7 @@ class LaserHopAI implements AiController {
     const when = Math.round((this.game.t + tc) * 20);
     if (tc > 0.6 || Math.abs(when - this.plannedFor) <= 2) return;
     this.plannedFor = when;
-    this.hand.tap(0, Math.max(0, tc - 0.21 + jitter(this.game.rng, this.sigma)));
+    this.hand.tap(0, Math.max(0, tc - JUMP_TIME / 2 + jitter(this.game.rng, this.sigma)));
   }
 }
 

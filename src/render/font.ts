@@ -8,6 +8,8 @@ export const FONT_SIZE = 8;
 export const LINE_HEIGHT = 10;
 // 일부 글리프가 em 상자 밖으로 나가도 잘리지 않게 두는 여백
 const PAD = 2;
+/** bitmap()이 글자 칸 바깥에 두는 여백 */
+export const FONT_PAD = PAD;
 const CACHE_LIMIT = 256;
 
 /**
@@ -52,11 +54,12 @@ export class PixelFont {
   /** (x, y)는 글자 칸의 왼쪽 위. y에서 FONT_SIZE 아래가 기준선이다. */
   draw(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: Color): void {
     if (!text) return;
-    const bitmap = this.rasterize(text, color);
+    const bitmap = this.bitmap(text, color);
     ctx.drawImage(bitmap, Math.round(x) - PAD, Math.round(y) - PAD);
   }
 
-  private rasterize(text: string, color: Color): HTMLCanvasElement {
+  /** 글자 그림(둘레에 FONT_PAD 여백). 한 번 그린 것은 캐시한다. */
+  bitmap(text: string, color: Color): HTMLCanvasElement {
     const key = `${color}|${text}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
