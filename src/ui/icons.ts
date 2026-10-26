@@ -344,6 +344,76 @@ const ICONS: Readonly<Record<string, IconDraw>> = {
     g.rect(5, 10, 2, 2, PAL.text);
     g.rect(2, 13, 2, 2, PAL.text);
   },
+  // 범퍼카(위에서): 몸통 + 범퍼 + 바퀴
+  G62: (g) => {
+    g.rect(3, 4, 10, 9, PAL.red);
+    g.rect(3, 11, 10, 2, PAL.redShadow);
+    g.rect(2, 2, 12, 2, PAL.bgMid);
+    g.rect(2, 13, 12, 2, PAL.bgMid);
+    g.rect(5, 6, 6, 3, PAL.text);
+    g.rect(1, 5, 2, 3, PAL.line);
+    g.rect(13, 5, 2, 3, PAL.line);
+  },
+  // 닭: 몸통 + 볏 + 부리
+  G63: (g) => {
+    g.ellipse(8, 10, 6, 5, PAL.text, PAL.bgMid);
+    g.ellipse(11, 5, 3, 3, PAL.text);
+    g.rect(10, 1, 3, 2, PAL.red);
+    g.rect(14, 5, 2, 1, PAL.yellow);
+    g.set(11, 4, PAL.line);
+    g.rect(6, 15, 1, 1, PAL.yellow);
+    g.rect(9, 15, 1, 1, PAL.yellow);
+  },
+  // 왕관
+  G64: (g) => {
+    g.rect(2, 8, 12, 6, PAL.yellow);
+    g.rect(2, 12, 12, 2, PAL.yellowShadow);
+    g.rect(2, 4, 2, 4, PAL.yellow);
+    g.rect(7, 2, 2, 6, PAL.yellow);
+    g.rect(12, 4, 2, 4, PAL.yellow);
+    g.rect(7, 9, 2, 2, PAL.red);
+  },
+  // 축구공
+  G65: (g) => {
+    g.ellipse(8, 8, 7, 7, PAL.text, PAL.bgMid);
+    g.rect(6, 6, 4, 4, PAL.line);
+    g.rect(1, 6, 2, 3, PAL.line);
+    g.rect(13, 6, 2, 3, PAL.line);
+    g.rect(6, 1, 4, 1, PAL.line);
+    g.rect(6, 14, 4, 1, PAL.line);
+  },
+  // 머리 + 꼬리 마디(남의 마디를 물려는 중)
+  G66: (g) => {
+    g.ellipse(4, 4, 3, 3, PAL.blue, PAL.blueShadow);
+    g.ellipse(9, 8, 2, 2, PAL.red);
+    g.ellipse(12, 11, 2, 2, PAL.red);
+    g.ellipse(14, 14, 1.5, 1.5, PAL.redShadow);
+  },
+  // 의자
+  G67: (g) => {
+    g.rect(3, 1, 2, 14, PAL.yellowShadow);
+    g.rect(3, 1, 9, 2, PAL.yellow);
+    g.rect(3, 8, 10, 3, PAL.yellow);
+    g.rect(11, 11, 2, 4, PAL.yellowShadow);
+    g.rect(3, 4, 9, 1, PAL.yellowShadow);
+  },
+  // 불붙은 폭탄
+  G68: (g) => {
+    g.ellipse(7, 10, 5.5, 5.5, PAL.bgMid, PAL.bgDark);
+    g.rect(4, 7, 2, 2, PAL.text);
+    g.rect(10, 3, 2, 3, PAL.yellowShadow);
+    g.rect(12, 1, 2, 2, PAL.yellow);
+    g.set(14, 0, PAL.red);
+    g.set(11, 0, PAL.red);
+  },
+  // 주사위 둘
+  G69: (g) => {
+    g.rect(0, 5, 9, 9, PAL.text);
+    g.rect(2, 7, 2, 2, PAL.line);
+    g.rect(5, 10, 2, 2, PAL.line);
+    g.rect(8, 1, 8, 8, PAL.red);
+    g.rect(11, 4, 2, 2, PAL.text);
+  },
 };
 
 const cache = new Map<string, HTMLCanvasElement>();

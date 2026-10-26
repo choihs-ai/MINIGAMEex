@@ -5,7 +5,7 @@ import type { Seat } from '../src/input/seats';
 import { ARENA_R, ARENA_X, ARENA_Y, DURATION as G01_DURATION, G01, SAFE_TIME, type SpinningTopBattle } from '../src/minigames/G01';
 import { G19, ROUNDS, type QuickDraw } from '../src/minigames/G19';
 import { BASKET_SPEED, BASKET_W, CATCH_Y, DURATION as G22_DURATION, FIELD_W, FIELD_X, G22, type StarCatch } from '../src/minigames/G22';
-import { GAMES, READY_GAMES } from '../src/minigames/registry';
+import { GAMES } from '../src/minigames/registry';
 import { expectPartition, harness, runToEnd } from './helpers';
 
 const SETUPS: Array<{ name: string; joined: Seat[] }> = [
@@ -15,7 +15,7 @@ const SETUPS: Array<{ name: string; joined: Seat[] }> = [
   { name: '4인', joined: [0, 1, 2, 3] },
 ];
 
-describe.each(READY_GAMES)('%s: 1·2·3·4인을 AI끼리 끝까지 돌린다', (code) => {
+describe.each(Object.keys(GAMES).sort())('%s: 1·2·3·4인을 AI끼리 끝까지 돌린다', (code) => {
   it.each(SETUPS)('$name', ({ joined }) => {
     for (const seed of [1, 2, 3]) {
       const h = harness(GAMES[code], joined, { seed, withAI: true });

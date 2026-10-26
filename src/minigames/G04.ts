@@ -22,7 +22,19 @@ export interface Painter {
   seat: Seat;
   x: number;
   y: number;
+  /** 밀려나는 속도 */
+  kx: number;
+  ky: number;
+  /** 들이받혀 어지러운 시간(못 움직이고 못 칠한다) */
+  stun: number;
+  /** 이번 틱에 움직인 속도(누가 들이받았는지 가린다) */
+  vx: number;
+  vy: number;
 }
+
+export const PAINTER_R = 5;
+const KNOCK = 120;
+export const STUN = 0.6;
 
 export class PaintLand implements MiniGame {
   readonly code = 'G04';
@@ -38,7 +50,7 @@ export class PaintLand implements MiniGame {
     this.ctx = ctx;
     this.painters = ctx.players.map((p) => {
       const a = anchorOf(p, ctx.humanCount, 96, 52);
-      return { seat: p.seat, x: a.x, y: a.y };
+      return { seat: p.seat, x: a.x, y: a.y, kx: 0, ky: 0, stun: 0, vx: 0, vy: 0 };
     });
   }
 
@@ -77,18 +89,61 @@ export class PaintLand implements MiniGame {
   update(dt: number): void {
     this.t += dt;
     if (this.done) return;
+    const fade = Math.exp(-5 * dt);
     for (const p of this.painters) {
-      const s = stickOf(this.ctx.controls.get(p.seat)!);
-      p.x = Math.max(3, Math.min(317, p.x + s.x * SPEED * dt));
-      p.y = Math.max(TOP + 3, Math.min(TOP + ROWS * CELL - 3, p.y + s.y * SPEED * dt));
-      this.grid[this.cellOf(p.x, p.y)] = p.seat;
+      const s = p.stun > 0 ? { x: 0, y: 0 } : stickOf(this.ctx.controls.get(p.seat)!);
+      p.stun = Math.max(0, p.stun - dt);
+      p.vx = s.x * SPEED;
+      p.vy = s.y * SPEED;
+      p.kx *= fade;
+      p.ky *= fade;
+      p.x = Math.max(3, Math.min(317, p.x + (p.vx + p.kx) * dt));
+      p.y = Math.max(TOP + 3, Math.min(TOP + ROWS * CELL - 3, p.y + (p.vy + p.ky) * dt));
+      if (p.stun <= 0) this.grid[this.cellOf(p.x, p.y)] = p.seat;
     }
+    this.bump();
     this.encloseClock -= dt;
     if (this.encloseClock <= 0) {
       this.encloseClock += ENCLOSE_EVERY;
       for (const p of this.painters) this.enclose(p.seat);
     }
     if (this.t >= DURATION) this.done = true;
+  }
+
+  /** 들이받기: 상대 쪽으로 더 달려든 사람이 이기고, 진 사람은 튕겨 나가 잠깐 어지럽다 */
+  private bump(): void {
+    const ps = this.painters;
+    for (let i = 0; i < ps.length; i++) {
+      for (let j = i + 1; j < ps.length; j++) {
+        const a = ps[i];
+        const b = ps[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d >= PAINTER_R * 2 || d === 0) continue;
+        const nx = dx / d;
+        const ny = dy / d;
+        const push = (PAINTER_R * 2 - d) / 2;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+        if (a.stun > 0 || b.stun > 0) continue;
+        const aIn = a.vx * nx + a.vy * ny;
+        const bIn = -(b.vx * nx + b.vy * ny);
+        if (aIn + bIn < 10) continue;
+        // 더 세게 달려든 쪽은 살짝만, 받힌 쪽은 멀리 튕기고 어지럽다(비슷하면 둘 다)
+        const loser = Math.abs(aIn - bIn) < 12 ? null : aIn > bIn ? b : a;
+        for (const [m, sign] of [[a, -1], [b, 1]] as const) {
+          const k = loser === null || loser === m ? KNOCK : KNOCK * 0.3;
+          m.kx += sign * nx * k;
+          m.ky += sign * ny * k;
+          if (loser === null || loser === m) m.stun = loser === null ? STUN * 0.5 : STUN;
+        }
+        this.ctx.sfx.hit();
+        this.ctx.fx.shake(2, 0.1);
+      }
+    }
   }
 
   /** 가장자리에서 내 칸을 밟지 않고 갈 수 없는 칸은 모두 내 것 */
@@ -147,7 +202,12 @@ export class PaintLand implements MiniGame {
       r.disc(p.x, p.y, 5, PAL.line);
       r.disc(p.x, p.y, 4, PAL.text);
       r.disc(p.x, p.y, 2, c.shadow);
-      drawMarker(r, p.x, p.y - 7, c.base);
+      if (p.stun > 0) {
+        // 어지러움: 머리 위로 별이 돈다
+        const a = this.t * 12;
+        r.rect(Math.round(p.x + Math.cos(a) * 6), Math.round(p.y - 6 + Math.sin(a) * 2), 2, 2, PAL.yellow);
+        r.rect(Math.round(p.x - Math.cos(a) * 6), Math.round(p.y - 6 - Math.sin(a) * 2), 2, 2, PAL.yellow);
+      } else drawMarker(r, p.x, p.y - 7, c.base);
     }
     const scores = this.getScores();
     for (const pl of this.ctx.players) {
@@ -165,6 +225,7 @@ class PaintAI implements AiController {
   private wait = 0;
   private readonly interval: number;
   private readonly size: readonly [number, number];
+  private readonly ram: number;
 
   constructor(
     private readonly game: PaintLand,
@@ -174,6 +235,7 @@ class PaintAI implements AiController {
     this.hand = new AiHand(controls);
     this.interval = byDifficulty(player.difficulty, { easy: 0.3, normal: 0.15, hard: 0.08 });
     this.size = byDifficulty(player.difficulty, { easy: [16, 32], normal: [24, 48], hard: [32, 64] });
+    this.ram = byDifficulty(player.difficulty, { easy: 0.1, normal: 0.25, hard: 0.4 });
   }
 
   think(dt: number): void {
@@ -184,6 +246,14 @@ class PaintAI implements AiController {
     if (this.wait > 0) return;
     this.wait = this.interval;
     const me = g.painters.find((p) => p.seat === this.player.seat)!;
+    // 가까이 온 상대는 가끔 들이받는다
+    const foe = g.painters.find((p) => p !== me && p.stun <= 0 && Math.hypot(p.x - me.x, p.y - me.y) < 22);
+    if (foe && g.rng.next() < this.ram) {
+      const d = Math.hypot(foe.x - me.x, foe.y - me.y) || 1;
+      this.hand.stick((foe.x - me.x) / d, (foe.y - me.y) / d);
+      this.corners = [];
+      return;
+    }
     if (this.corners.length === 0) this.planLoop(me);
     const target = this.corners[0];
     const dx = target.x - me.x;

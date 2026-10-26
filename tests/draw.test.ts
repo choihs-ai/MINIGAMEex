@@ -20,8 +20,8 @@ function check(seq: string[], opts: { categoryRule?: boolean } = {}): void {
 }
 
 describe('drawSet (토너먼트 게임 뽑기)', () => {
-  it('세부표의 랜덤 후보는 39종이고 파티 게임은 없다(파티는 따로 뺀 파일)', () => {
-    expect(RANDOM_POOL).toHaveLength(39);
+  it('세부표의 랜덤 후보는 47종이고 파티 게임은 없다(파티는 따로 뺀 파일)', () => {
+    expect(RANDOM_POOL).toHaveLength(47);
     expect(RANDOM_POOL.some((g) => g.category === '파티')).toBe(false);
   });
 
@@ -105,8 +105,9 @@ describe('tournamentPool', () => {
   it('완성된 게임 중 랜덤 후보만, 권한 거부한 게임은 뺀다', () => {
     const all = tournamentPool([]).map((g) => g.code);
     expect(all).toEqual(READY_GAMES.filter((c) => gameInfo(c).random7 && !gameInfo(c).partyOnly));
-    expect(all).toContain('G19');
-    expect(tournamentPool(['G19']).map((g) => g.code)).toEqual(all.filter((c) => c !== 'G19'));
+    expect(all).toContain('G01');
+    expect(all).not.toContain('G19');
+    expect(tournamentPool(['G01']).map((g) => g.code)).toEqual(all.filter((c) => c !== 'G01'));
   });
 });
 

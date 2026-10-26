@@ -28,6 +28,10 @@ export const GRASS_SPEED = 20;
 const ACCEL = 90;
 export const STEER_RATE = 3.6;
 export const KART_R = 4;
+/** 들이받으면 상대가 옆으로 튕겨 나가는 세기(다가온 속도 대비)와 최소값 */
+const KNOCK = 1.3;
+const MIN_KNOCK = 45;
+const KNOCK_FRICTION = 4;
 
 export interface Kart {
   seat: Seat;
@@ -40,6 +44,9 @@ export interface Kart {
   lastAngle: number;
   finishAt: number | null;
   steer: -1 | 0 | 1;
+  /** 들이받혀 옆으로 밀려나는 속도(점점 줄어든다) */
+  kx: number;
+  ky: number;
 }
 
 /** 타원 위 각도(화면 기준, 아래쪽이 +π/2) */
@@ -76,7 +83,7 @@ export class KartRace implements MiniGame {
     this.karts = ordered.map((p, i) => {
       const x = 150 - Math.floor(i / 2) * 14;
       const y = i % 2 === 0 ? 139 : 153;
-      return { seat: p.seat, x, y, heading: 0, speed: 0, progress: 0, lastAngle: trackAngle(x, y), finishAt: null, steer: 0 };
+      return { seat: p.seat, x, y, heading: 0, speed: 0, progress: 0, lastAngle: trackAngle(x, y), finishAt: null, steer: 0, kx: 0, ky: 0 };
     });
     for (const k of this.karts) k.progress = -wrap(k.lastAngle - Math.PI / 2) / (Math.PI * 2);
   }
@@ -132,8 +139,11 @@ export class KartRace implements MiniGame {
     const top = k.finishAt !== null ? 20 : onTrack(k.x, k.y) ? MAX_SPEED : GRASS_SPEED;
     if (k.speed < top) k.speed = Math.min(top, k.speed + ACCEL * dt);
     else k.speed = Math.max(top, k.speed - ACCEL * 1.5 * dt);
-    k.x += Math.cos(k.heading) * k.speed * dt;
-    k.y += Math.sin(k.heading) * k.speed * dt;
+    const fade = Math.exp(-KNOCK_FRICTION * dt);
+    k.kx *= fade;
+    k.ky *= fade;
+    k.x += (Math.cos(k.heading) * k.speed + k.kx) * dt;
+    k.y += (Math.sin(k.heading) * k.speed + k.ky) * dt;
     k.x = Math.max(4, Math.min(316, k.x));
     k.y = Math.max(4, Math.min(176, k.y));
 
@@ -165,14 +175,25 @@ export class KartRace implements MiniGame {
         a.y -= ny * push;
         b.x += nx * push;
         b.y += ny * push;
-        // 서로 다가오며 부딪힌 순간에만 느려진다(나란히 달리며 스치는 것은 괜찮다)
+        // 서로 다가오며 부딪힌 순간에만 튕긴다(나란히 달리며 스치는 것은 괜찮다).
+        // 박은 쪽은 덜, 박힌 쪽은 많이 밀려나 잔디로 빠질 수 있다.
         const closing =
-          (Math.cos(a.heading) * a.speed - Math.cos(b.heading) * b.speed) * nx +
-          (Math.sin(a.heading) * a.speed - Math.sin(b.heading) * b.speed) * ny;
+          (Math.cos(a.heading) * a.speed + a.kx - Math.cos(b.heading) * b.speed - b.kx) * nx +
+          (Math.sin(a.heading) * a.speed + a.ky - Math.sin(b.heading) * b.speed - b.ky) * ny;
         if (closing > 12) {
-          a.speed *= 0.8;
-          b.speed *= 0.8;
+          const knock = Math.max(MIN_KNOCK, closing * KNOCK);
+          const aIn = Math.max(0, Math.cos(a.heading) * nx + Math.sin(a.heading) * ny);
+          const bIn = Math.max(0, -(Math.cos(b.heading) * nx + Math.sin(b.heading) * ny));
+          // 정면으로 들이민 쪽(aIn/bIn 큰 쪽)이 상대를 더 세게 민다
+          const total = aIn + bIn + 0.2;
+          a.kx -= nx * knock * ((bIn + 0.1) / total);
+          a.ky -= ny * knock * ((bIn + 0.1) / total);
+          b.kx += nx * knock * ((aIn + 0.1) / total);
+          b.ky += ny * knock * ((aIn + 0.1) / total);
+          a.speed *= 0.85;
+          b.speed *= 0.85;
           this.ctx.sfx.hit();
+          this.ctx.fx.shake(1.5, 0.08);
         }
       }
     }
